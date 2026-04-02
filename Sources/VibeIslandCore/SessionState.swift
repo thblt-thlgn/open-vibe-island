@@ -199,6 +199,24 @@ public struct SessionState: Equatable, Sendable {
         return changed
     }
 
+    @discardableResult
+    public mutating func reconcileJumpTargets(_ updates: [String: JumpTarget]) -> Bool {
+        var changed = false
+
+        for (sessionID, jumpTarget) in updates {
+            guard var session = sessionsByID[sessionID],
+                  session.jumpTarget != jumpTarget else {
+                continue
+            }
+
+            session.jumpTarget = jumpTarget
+            upsert(session)
+            changed = true
+        }
+
+        return changed
+    }
+
     private mutating func upsert(_ session: AgentSession) {
         sessionsByID[session.id] = session
     }

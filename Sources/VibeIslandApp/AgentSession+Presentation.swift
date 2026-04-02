@@ -233,7 +233,7 @@ extension AgentSession {
             return .running
         }
 
-        if phase.requiresAttention {
+        if attachmentState == .attached || phase.requiresAttention {
             return .active
         }
 

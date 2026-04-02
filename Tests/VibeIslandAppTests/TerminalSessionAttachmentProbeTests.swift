@@ -61,6 +61,47 @@ struct TerminalSessionAttachmentProbeTests {
     }
 
     @Test
+    func ghosttyRehomesMisbindingWhenRecordedTerminalIsAlreadyClaimed() {
+        let now = Date(timeIntervalSince1970: 1_000)
+        let probe = TerminalSessionAttachmentProbe()
+        let primary = ghosttySession(
+            id: "primary",
+            updatedAt: now,
+            phase: .running,
+            terminalSessionID: "ghostty-1",
+            workingDirectory: "/tmp/worktree"
+        )
+        let rehomed = ghosttySession(
+            id: "rehomed",
+            updatedAt: now.addingTimeInterval(-30),
+            phase: .completed,
+            terminalSessionID: "ghostty-1",
+            paneTitle: "codex ~/tmp/worktree",
+            workingDirectory: "/tmp/personal",
+            workspaceName: "worktree"
+        )
+
+        let resolutions = probe.sessionResolutions(
+            for: [primary, rehomed],
+            ghosttyAvailability: .available(
+                [
+                    .init(sessionID: "ghostty-1", workingDirectory: "/tmp/worktree", title: "codex ~/tmp/worktree"),
+                    .init(sessionID: "ghostty-2", workingDirectory: "/tmp/personal", title: "codex ~/tmp/personal"),
+                ],
+                appIsRunning: true
+            ),
+            terminalAvailability: .available([] as [TerminalSessionAttachmentProbe.TerminalTabSnapshot], appIsRunning: false),
+            now: now
+        )
+
+        #expect(resolutions["primary"]?.attachmentState == .attached)
+        #expect(resolutions["rehomed"]?.attachmentState == .attached)
+        #expect(resolutions["rehomed"]?.correctedJumpTarget?.terminalSessionID == "ghostty-2")
+        #expect(resolutions["rehomed"]?.correctedJumpTarget?.paneTitle == "codex ~/tmp/personal")
+        #expect(resolutions["rehomed"]?.correctedJumpTarget?.workspaceName == "personal")
+    }
+
+    @Test
     func explicitTerminalMissDropsRecentlyAttachedSessionOutOfLiveState() {
         let now = Date(timeIntervalSince1970: 1_000)
         let probe = TerminalSessionAttachmentProbe()
@@ -109,6 +150,8 @@ struct TerminalSessionAttachmentProbeTests {
         phase: SessionPhase,
         terminalSessionID: String,
         paneTitle: String = "codex ~/tmp/worktree",
+        workingDirectory: String = "/tmp/worktree",
+        workspaceName: String = "worktree",
         codexMetadata: CodexSessionMetadata? = nil
     ) -> AgentSession {
         AgentSession(
@@ -122,9 +165,9 @@ struct TerminalSessionAttachmentProbeTests {
             updatedAt: updatedAt,
             jumpTarget: JumpTarget(
                 terminalApp: "Ghostty",
-                workspaceName: "worktree",
+                workspaceName: workspaceName,
                 paneTitle: paneTitle,
-                workingDirectory: "/tmp/worktree",
+                workingDirectory: workingDirectory,
                 terminalSessionID: terminalSessionID
             ),
             codexMetadata: codexMetadata

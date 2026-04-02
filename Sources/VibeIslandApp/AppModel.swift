@@ -987,8 +987,17 @@ final class AppModel {
             return
         }
 
-        let updates = terminalSessionAttachmentProbe.attachmentStates(for: sessions)
-        guard state.reconcileAttachmentStates(updates) else {
+        let resolutions = terminalSessionAttachmentProbe.sessionResolutions(for: sessions)
+        let attachmentUpdates = resolutions.mapValues(\.attachmentState)
+        let jumpTargetUpdates = resolutions.reduce(into: [String: JumpTarget]()) { partialResult, entry in
+            if let correctedJumpTarget = entry.value.correctedJumpTarget {
+                partialResult[entry.key] = correctedJumpTarget
+            }
+        }
+
+        let attachmentsChanged = state.reconcileAttachmentStates(attachmentUpdates)
+        let jumpTargetsChanged = state.reconcileJumpTargets(jumpTargetUpdates)
+        guard attachmentsChanged || jumpTargetsChanged else {
             return
         }
 
