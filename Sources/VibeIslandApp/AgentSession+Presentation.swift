@@ -120,11 +120,20 @@ extension AgentSession {
     }
 
     var spotlightHeadlineText: String {
-        guard let prompt = spotlightPromptText else {
+        guard let prompt = spotlightHeadlinePromptText else {
             return spotlightWorkspaceName
         }
 
         return "\(spotlightWorkspaceName) · \(prompt)"
+    }
+
+    var spotlightHeadlinePromptText: String? {
+        let prompt = codexMetadata?.initialUserPrompt?.trimmedForSurface
+        guard let prompt, !prompt.isEmpty else {
+            return spotlightPromptText
+        }
+
+        return prompt
     }
 
     var spotlightPromptText: String? {

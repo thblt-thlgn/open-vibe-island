@@ -3,6 +3,7 @@ import Foundation
 
 public struct CodexSessionMetadata: Equatable, Codable, Sendable {
     public var transcriptPath: String?
+    public var initialUserPrompt: String?
     public var lastUserPrompt: String?
     public var lastAssistantMessage: String?
     public var currentTool: String?
@@ -10,12 +11,14 @@ public struct CodexSessionMetadata: Equatable, Codable, Sendable {
 
     public init(
         transcriptPath: String? = nil,
+        initialUserPrompt: String? = nil,
         lastUserPrompt: String? = nil,
         lastAssistantMessage: String? = nil,
         currentTool: String? = nil,
         currentCommandPreview: String? = nil
     ) {
         self.transcriptPath = transcriptPath
+        self.initialUserPrompt = initialUserPrompt
         self.lastUserPrompt = lastUserPrompt
         self.lastAssistantMessage = lastAssistantMessage
         self.currentTool = currentTool
@@ -24,6 +27,7 @@ public struct CodexSessionMetadata: Equatable, Codable, Sendable {
 
     public var isEmpty: Bool {
         transcriptPath == nil
+            && initialUserPrompt == nil
             && lastUserPrompt == nil
             && lastAssistantMessage == nil
             && currentTool == nil
@@ -322,6 +326,7 @@ public final class CodexRolloutDiscovery: @unchecked Sendable {
         let updatedAt = snapshot.updatedAt ?? sessionMeta.timestamp ?? modifiedAt
         let metadata = CodexSessionMetadata(
             transcriptPath: fileURL.path,
+            initialUserPrompt: snapshot.initialUserPrompt,
             lastUserPrompt: snapshot.lastUserPrompt,
             lastAssistantMessage: snapshot.lastAssistantMessage,
             currentTool: snapshot.currentTool,
@@ -382,6 +387,7 @@ public struct CodexRolloutSnapshot: Equatable, Sendable {
     public var summary: String?
     public var phase: SessionPhase
     public var updatedAt: Date?
+    public var initialUserPrompt: String?
     public var lastUserPrompt: String?
     public var lastAssistantMessage: String?
     public var currentTool: String?
@@ -392,6 +398,7 @@ public struct CodexRolloutSnapshot: Equatable, Sendable {
         summary: String? = nil,
         phase: SessionPhase = .running,
         updatedAt: Date? = nil,
+        initialUserPrompt: String? = nil,
         lastUserPrompt: String? = nil,
         lastAssistantMessage: String? = nil,
         currentTool: String? = nil,
@@ -401,6 +408,7 @@ public struct CodexRolloutSnapshot: Equatable, Sendable {
         self.summary = summary
         self.phase = phase
         self.updatedAt = updatedAt
+        self.initialUserPrompt = initialUserPrompt
         self.lastUserPrompt = lastUserPrompt
         self.lastAssistantMessage = lastAssistantMessage
         self.currentTool = currentTool
@@ -410,6 +418,7 @@ public struct CodexRolloutSnapshot: Equatable, Sendable {
 
     public var metadata: CodexSessionMetadata {
         CodexSessionMetadata(
+            initialUserPrompt: initialUserPrompt,
             lastUserPrompt: lastUserPrompt,
             lastAssistantMessage: lastAssistantMessage,
             currentTool: currentTool,
@@ -454,6 +463,7 @@ public enum CodexRolloutReducer {
         let oldMetadata = oldSnapshot.map {
             CodexSessionMetadata(
                 transcriptPath: transcriptPath,
+                initialUserPrompt: $0.initialUserPrompt,
                 lastUserPrompt: $0.lastUserPrompt,
                 lastAssistantMessage: $0.lastAssistantMessage,
                 currentTool: $0.currentTool,
@@ -462,6 +472,7 @@ public enum CodexRolloutReducer {
         }
         let newMetadata = CodexSessionMetadata(
             transcriptPath: transcriptPath,
+            initialUserPrompt: newSnapshot.initialUserPrompt,
             lastUserPrompt: newSnapshot.lastUserPrompt,
             lastAssistantMessage: newSnapshot.lastAssistantMessage,
             currentTool: newSnapshot.currentTool,
@@ -528,6 +539,7 @@ public enum CodexRolloutReducer {
                 break
             }
 
+            snapshot.initialUserPrompt = snapshot.initialUserPrompt ?? message
             snapshot.lastUserPrompt = message
             snapshot.currentTool = nil
             snapshot.currentCommandPreview = nil

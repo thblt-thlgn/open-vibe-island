@@ -30,6 +30,7 @@ struct CodexSessionTrackingTests {
                 ),
                 codexMetadata: CodexSessionMetadata(
                     transcriptPath: "/tmp/rollout.jsonl",
+                    initialUserPrompt: "Start by checking the rollout watcher.",
                     lastUserPrompt: "Check the rollout watcher state.",
                     lastAssistantMessage: "Inspecting rollout watcher.",
                     currentTool: "exec_command",
@@ -43,6 +44,7 @@ struct CodexSessionTrackingTests {
 
         #expect(reloaded == records)
         #expect(reloaded.first?.session.codexMetadata?.transcriptPath == "/tmp/rollout.jsonl")
+        #expect(reloaded.first?.session.codexMetadata?.initialUserPrompt == "Start by checking the rollout watcher.")
         #expect(reloaded.first?.session.codexMetadata?.lastUserPrompt == "Check the rollout watcher state.")
         #expect(reloaded.first?.session.origin == .live)
         #expect(reloaded.first?.session.attachmentState == .attached)
@@ -148,9 +150,11 @@ struct CodexSessionTrackingTests {
             transcriptPath: "/tmp/rollout.jsonl"
         )
 
+        #expect(initialSnapshot.initialUserPrompt == "Check the rollout watcher status.")
         #expect(initialSnapshot.lastUserPrompt == "Check the rollout watcher status.")
         #expect(initialSnapshot.currentTool == "exec_command")
         #expect(initialSnapshot.currentCommandPreview == "git status -sb")
+        #expect(initialEvents.contains(where: { $0.trackedMetadataUpdate?.codexMetadata.initialUserPrompt == "Check the rollout watcher status." }))
         #expect(initialEvents.contains(where: { $0.trackedMetadataUpdate?.codexMetadata.lastUserPrompt == "Check the rollout watcher status." }))
         #expect(initialEvents.contains(where: { $0.trackedMetadataUpdate?.codexMetadata.currentCommandPreview == "git status -sb" }))
         #expect(initialEvents.contains(where: { $0.trackedActivityUpdate?.summary == "Running command." }))
@@ -188,6 +192,31 @@ struct CodexSessionTrackingTests {
         #expect(finalEvents.contains(where: { $0.trackedSessionCompletion?.summary == "Rollout watcher is wired and verified." }))
         #expect(finalEvents.contains(where: { $0.trackedMetadataUpdate?.codexMetadata.currentTool == nil }))
         #expect(finalEvents.contains(where: { $0.trackedMetadataUpdate?.codexMetadata.currentCommandPreview == nil }))
+    }
+
+    @Test
+    func codexRolloutReducerPreservesInitialPromptAcrossLaterPrompts() {
+        let snapshot = CodexRolloutReducer.snapshot(for: [
+            rolloutLine(
+                timestamp: "2026-04-02T04:03:44.500Z",
+                type: "event_msg",
+                payload: [
+                    "type": "user_message",
+                    "message": "Start with the island hover behavior.",
+                ]
+            ),
+            rolloutLine(
+                timestamp: "2026-04-02T04:05:10.000Z",
+                type: "event_msg",
+                payload: [
+                    "type": "user_message",
+                    "message": "Now make the overlay height fit the content.",
+                ]
+            ),
+        ])
+
+        #expect(snapshot.initialUserPrompt == "Start with the island hover behavior.")
+        #expect(snapshot.lastUserPrompt == "Now make the overlay height fit the content.")
     }
 
     @Test

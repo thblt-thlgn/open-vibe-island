@@ -548,6 +548,7 @@ public final class DemoBridgeServer: @unchecked Sendable {
     ) -> CodexSessionMetadata {
         CodexSessionMetadata(
             transcriptPath: update.transcriptPath ?? existing?.transcriptPath,
+            initialUserPrompt: existing?.initialUserPrompt ?? update.initialUserPrompt ?? update.lastUserPrompt,
             lastUserPrompt: update.lastUserPrompt ?? existing?.lastUserPrompt,
             lastAssistantMessage: update.lastAssistantMessage ?? existing?.lastAssistantMessage,
             currentTool: mergedCurrentTool(
