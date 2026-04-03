@@ -102,6 +102,9 @@ final class AppModel {
     private let codexSessionStore = CodexSessionStore()
 
     @ObservationIgnored
+    private let claudeSessionRegistry = ClaudeSessionRegistry()
+
+    @ObservationIgnored
     private let codexRolloutWatcher = CodexRolloutWatcher()
 
     @ObservationIgnored
@@ -118,6 +121,9 @@ final class AppModel {
 
     @ObservationIgnored
     private var codexSessionPersistenceTask: Task<Void, Never>?
+
+    @ObservationIgnored
+    private var claudeSessionPersistenceTask: Task<Void, Never>?
 
     @ObservationIgnored
     private var sessionAttachmentMonitorTask: Task<Void, Never>?
@@ -469,6 +475,7 @@ final class AppModel {
         }
 
         restorePersistedCodexSessions()
+        restorePersistedClaudeSessions()
         discoverRecentCodexSessions()
         discoverRecentClaudeSessions()
         reconcileSessionAttachments()
@@ -1018,6 +1025,7 @@ final class AppModel {
         refreshCodexRolloutTracking()
         refreshOverlayPlacementIfVisible()
         scheduleCodexSessionPersistence()
+        scheduleClaudeSessionPersistence()
 
         if updateLastActionMessage {
             lastActionMessage = describe(event)
@@ -1128,6 +1136,31 @@ final class AppModel {
         }
     }
 
+    private func restorePersistedClaudeSessions() {
+        do {
+            let loadedRecords = try claudeSessionRegistry.load()
+            let records = loadedRecords.filter {
+                $0.updatedAt >= Date.now.addingTimeInterval(-86_400) && $0.shouldRestoreToLiveState
+            }
+
+            if records != loadedRecords {
+                try? claudeSessionRegistry.save(records)
+            }
+
+            guard !records.isEmpty else {
+                return
+            }
+
+            let restoredSessions = records.map(\.restorableSession)
+            state = SessionState(sessions: mergeDiscoveredSessions(restoredSessions))
+            synchronizeSelection()
+            refreshOverlayPlacementIfVisible()
+            lastActionMessage = "Restored \(records.count) recent Claude session(s) from local registry."
+        } catch {
+            lastActionMessage = "Failed to restore Claude session registry: \(error.localizedDescription)"
+        }
+    }
+
     private func discoverRecentCodexSessions() {
         let records = codexRolloutDiscovery.discoverRecentSessions()
         guard !records.isEmpty else {
@@ -1152,6 +1185,7 @@ final class AppModel {
         state = SessionState(sessions: mergedSessions)
         synchronizeSelection()
         refreshOverlayPlacementIfVisible()
+        scheduleClaudeSessionPersistence()
         lastActionMessage = "Discovered \(sessions.count) recent Claude session(s) from local transcripts."
     }
 
@@ -1172,7 +1206,7 @@ final class AppModel {
         codexRolloutWatcher.sync(targets: targets)
     }
 
-    private func mergeDiscoveredSessions(_ discoveredSessions: [AgentSession]) -> [AgentSession] {
+    func mergeDiscoveredSessions(_ discoveredSessions: [AgentSession]) -> [AgentSession] {
         var mergedByID = Dictionary(uniqueKeysWithValues: state.sessions.map { ($0.id, $0) })
 
         for discovered in discoveredSessions {
@@ -1436,6 +1470,7 @@ final class AppModel {
         synchronizeSelection()
         refreshOverlayPlacementIfVisible()
         scheduleCodexSessionPersistence()
+        scheduleClaudeSessionPersistence()
     }
 
     private func markSessionAttached(for event: AgentEvent) {
@@ -1492,6 +1527,25 @@ final class AppModel {
         codexSessionPersistenceTask = Task.detached(priority: .utility) {
             try? await Task.sleep(for: .milliseconds(250))
             try? store.save(records)
+        }
+    }
+
+    private func scheduleClaudeSessionPersistence() {
+        claudeSessionPersistenceTask?.cancel()
+
+        let records = state.sessions
+            .filter {
+                $0.tool == .claudeCode
+                    && $0.isTrackedLiveSession
+                    && $0.updatedAt >= Date.now.addingTimeInterval(-86_400)
+                    && ($0.jumpTarget != nil || $0.claudeMetadata?.transcriptPath != nil)
+            }
+            .map(ClaudeTrackedSessionRecord.init(session:))
+        let registry = claudeSessionRegistry
+
+        claudeSessionPersistenceTask = Task.detached(priority: .utility) {
+            try? await Task.sleep(for: .milliseconds(250))
+            try? registry.save(records)
         }
     }
 

@@ -114,4 +114,63 @@ struct AppModelSessionListTests {
         #expect(model.notchStatus == .closed)
         #expect(model.notchOpenReason == nil)
     }
+
+    @Test
+    func mergeDiscoveredClaudeSessionsPreservesRegistryJumpTargetAndAddsTranscriptMetadata() {
+        let now = Date(timeIntervalSince1970: 2_000)
+        let model = AppModel()
+        model.state = SessionState(
+            sessions: [
+                AgentSession(
+                    id: "claude-session",
+                    title: "Claude · vibe-island",
+                    tool: .claudeCode,
+                    origin: .live,
+                    attachmentState: .stale,
+                    phase: .completed,
+                    summary: "Recovered from registry",
+                    updatedAt: now.addingTimeInterval(-60),
+                    jumpTarget: JumpTarget(
+                        terminalApp: "Ghostty",
+                        workspaceName: "vibe-island",
+                        paneTitle: "claude ~/vibe-island",
+                        workingDirectory: "/tmp/vibe-island",
+                        terminalSessionID: "ghostty-claude",
+                        terminalTTY: "/dev/ttys002"
+                    )
+                ),
+            ]
+        )
+
+        let merged = model.mergeDiscoveredSessions([
+            AgentSession(
+                id: "claude-session",
+                title: "Claude · vibe-island",
+                tool: .claudeCode,
+                origin: .live,
+                attachmentState: .stale,
+                phase: .running,
+                summary: "Recovered from transcript",
+                updatedAt: now,
+                jumpTarget: JumpTarget(
+                    terminalApp: "Unknown",
+                    workspaceName: "vibe-island",
+                    paneTitle: "Claude deadbeef",
+                    workingDirectory: "/tmp/vibe-island"
+                ),
+                claudeMetadata: ClaudeSessionMetadata(
+                    transcriptPath: "/tmp/claude.jsonl",
+                    lastUserPrompt: "Check the Claude session registry.",
+                    currentTool: "Task"
+                )
+            ),
+        ])
+
+        #expect(merged.count == 1)
+        #expect(merged.first?.jumpTarget?.terminalApp == "Ghostty")
+        #expect(merged.first?.jumpTarget?.terminalSessionID == "ghostty-claude")
+        #expect(merged.first?.claudeMetadata?.transcriptPath == "/tmp/claude.jsonl")
+        #expect(merged.first?.claudeMetadata?.lastUserPrompt == "Check the Claude session registry.")
+        #expect(merged.first?.phase == .running)
+    }
 }
