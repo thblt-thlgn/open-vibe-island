@@ -61,6 +61,25 @@ See [docs/worktree-workflow.md](/Users/wangruobing/Personal/vibe-island/docs/wor
 - Do not count partial or experimental code paths for other terminals or agents as supported scope.
 - Do not broaden the reproduction scope to other tools, runtimes, platforms, or environments unless the user explicitly asks to expand it.
 
+## Reference Baselines
+
+- Official product reference: `https://vibeisland.app/`
+- Treat the official site as the primary behavior benchmark for notch placement, compact-vs-expanded island behavior, and external-display fallback behavior.
+- Current official-product constraint to preserve: on Macs with a built-in notch, the island should sit in the notch area; on external displays or non-notch Macs, it should fall back to a compact top-center bar.
+- Community implementation reference: `https://github.com/farouqaldori/claude-island`
+- Useful ideas to learn from `claude-island`:
+  - persist explicit screen selection, while keeping an automatic built-in-display fallback
+  - derive notch geometry from `NSScreen.safeAreaInsets` and `auxiliaryTopLeftArea` / `auxiliaryTopRightArea`
+  - separate compact closed state from expanded actionable state instead of treating the island as one always-expanded panel
+  - keep hook installation and Unix-socket request/response loops explicit and local-first
+  - enrich live session state from transcript or history parsing when hooks alone are too shallow
+- Do not treat `claude-island` as a product spec. It is a reference implementation, not the source of truth for Vibe Island.
+- Unless the user explicitly asks, do not import or prioritize these `claude-island` choices into this repository:
+  - Mixpanel or other analytics
+  - `tmux`, `yabai`, or window-manager-specific scope expansion
+  - Claude-only assumptions that weaken the shared agent model
+  - raising the repository support boundary beyond the surfaces already listed above
+
 ## Verification
 
 - Run targeted checks that match the change.
