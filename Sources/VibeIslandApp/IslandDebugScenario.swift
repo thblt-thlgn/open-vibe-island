@@ -19,6 +19,7 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
     case approvalCard
     case questionCard
     case completionCard
+    case longCompletionCard
 
     var id: String { rawValue }
 
@@ -34,6 +35,8 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
             "Question Card"
         case .completionCard:
             "Completion Card"
+        case .longCompletionCard:
+            "Long Completion Card"
         }
     }
 
@@ -49,6 +52,8 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
             "Auto-expanded question surface with selectable answer buttons."
         case .completionCard:
             "Auto-expanded finished-task reminder surface after a turn completes."
+        case .longCompletionCard:
+            "Long finished-task reply stays inside the card and scrolls internally."
         }
     }
 
@@ -112,6 +117,19 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
                 title: title,
                 summary: summary,
                 previewHeight: 250,
+                notchStatus: .opened,
+                notchOpenReason: .notification,
+                islandSurface: .completionCard(sessionID: session.id),
+                sessions: DebugSessionFactory.notificationSessions(lead: session, now: now),
+                selectedSessionID: session.id
+            )
+
+        case .longCompletionCard:
+            let session = DebugSessionFactory.longCompletionSession(now: now)
+            return IslandDebugSnapshot(
+                title: title,
+                summary: summary,
+                previewHeight: 290,
                 notchStatus: .opened,
                 notchOpenReason: .notification,
                 islandSurface: .completionCard(sessionID: session.id),
@@ -371,6 +389,39 @@ private enum DebugSessionFactory {
                 initialUserPrompt: "这次我可能确实需要一些 mock 手段，让我能验收这些 Card 的 UI。",
                 lastUserPrompt: "可以把 DEV 完全重构成一个 debug 页面。",
                 lastAssistantMessage: "Plan 文件已写好。你的 hooks 触发情况如何？"
+            )
+        )
+    }
+
+    static func longCompletionSession(now: Date) -> AgentSession {
+        AgentSession(
+            id: "session-completion-long",
+            title: "Codex · vibe-island",
+            tool: .codex,
+            origin: .live,
+            attachmentState: .attached,
+            phase: .completed,
+            summary: "README 提交已经完成，长回复现在应该在卡片内部滚动。",
+            updatedAt: now.addingTimeInterval(-45),
+            jumpTarget: JumpTarget(
+                terminalApp: "Ghostty",
+                workspaceName: "vibe-island",
+                paneTitle: "codex ~/Personal/vibe-island",
+                workingDirectory: "/Users/wangruobing/Personal/vibe-island",
+                terminalSessionID: "ghostty-completion-long"
+            ),
+            codexMetadata: CodexSessionMetadata(
+                initialUserPrompt: "帮我把这个 README 也提交了，然后把结果贴给我。",
+                lastUserPrompt: "顺便确认一下当前工作树和验证情况。",
+                lastAssistantMessage: """
+[README.md](/Users/wangruobing/Personal/vibe-island/README.md) 的现有改动已经单独提交了，commit 是 `f196316`，message 是 `docs: update readme tagline`。
+
+这轮没有跑测试，因为只是文案改动。当前工作树是干净的，`main` 相对 `origin/main` 现在是 `ahead 6`。
+
+如果你要我继续做下一轮，我建议把工作切到独立 worktree 里，这样不会和共享 `main` 上的并行改动互相打架。
+
+下一步我会先检查当前仓库状态，然后从 `origin/main` 新建一个 worktree 和分支，在新工作区里继续处理这个样式问题并做完验证。
+"""
             )
         )
     }

@@ -945,6 +945,8 @@ private struct IslandSessionRow: View {
 }
 
 private struct IslandNotificationCard: View {
+    private static let completionReplyMaxHeight: CGFloat = 188
+
     let session: AgentSession
     let onApprove: (Bool) -> Void
     let onAnswer: (QuestionPromptResponse) -> Void
@@ -1087,12 +1089,17 @@ private struct IslandNotificationCard: View {
                 .fill(.white.opacity(0.04))
                 .frame(height: 1)
 
-            Text(session.lastAssistantMessageText?.trimmedForNotificationCard ?? session.summary)
-                .font(.system(size: 13.5, weight: .medium))
-                .foregroundStyle(.white.opacity(0.88))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 14)
-                .fixedSize(horizontal: false, vertical: true)
+            ScrollView(.vertical) {
+                Text(completionMessageText)
+                    .font(.system(size: 13.5, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.88))
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 14)
+            }
+            .scrollIndicators(.visible)
+            .frame(minHeight: 0, maxHeight: Self.completionReplyMaxHeight, alignment: .top)
         }
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -1139,6 +1146,10 @@ private struct IslandNotificationCard: View {
 
     private var completionAccent: Color {
         Color(red: 0.29, green: 0.86, blue: 0.46)
+    }
+
+    private var completionMessageText: String {
+        session.lastAssistantMessageText?.trimmedForNotificationCard ?? session.summary
     }
 
     private var commandLabel: String {
