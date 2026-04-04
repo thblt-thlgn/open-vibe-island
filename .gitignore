@@ -16,6 +16,7 @@ Packages/
 Package.resolved
 
 # Local tooling artifacts
+.claude/
 .playwright-mcp/
 output/
 
