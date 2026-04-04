@@ -615,12 +615,16 @@ public final class DemoBridgeServer: @unchecked Sendable {
             synchronizeClaudeJumpTarget(for: payload)
             synchronizeClaudeMetadata(for: payload)
 
+            let notificationPhase: SessionPhase = payload.notificationType == "idle_prompt"
+                ? .completed
+                : .running
+
             emit(
                 .activityUpdated(
                     SessionActivityUpdated(
                         sessionID: payload.sessionID,
                         summary: payload.notificationPreview ?? payload.implicitStartSummary,
-                        phase: .running,
+                        phase: notificationPhase,
                         timestamp: .now
                     )
                 )
