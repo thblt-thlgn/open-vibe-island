@@ -356,6 +356,7 @@ struct IslandPanelView: View {
                     ForEach(displayedSessions) { session in
                         IslandSessionRow(
                             session: session,
+                            referenceDate: context.date,
                             isHighlighted: session.id == hoveredSessionID,
                             onHoverChange: { isHovering in
                                 hoveredSessionID = isHovering ? session.id : (hoveredSessionID == session.id ? nil : hoveredSessionID)
@@ -813,14 +814,13 @@ private struct OpenedHeaderMetrics {
 
 private struct IslandSessionRow: View {
     let session: AgentSession
+    let referenceDate: Date
     let isHighlighted: Bool
     let onHoverChange: (Bool) -> Void
     let onJump: () -> Void
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { context in
-            rowBody(referenceDate: context.date)
-        }
+        rowBody(referenceDate: referenceDate)
     }
 
     private func rowBody(referenceDate: Date) -> some View {
