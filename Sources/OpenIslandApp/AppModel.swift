@@ -4,24 +4,6 @@ import Observation
 import OpenIslandCore
 import SwiftUI
 
-enum NotchStatus: Equatable {
-    case closed
-    case opened
-    case popping
-}
-
-enum NotchOpenReason: Equatable {
-    case click
-    case hover
-    case notification
-    case boot
-}
-
-enum TrackedEventIngress {
-    case bridge
-    case rollout
-}
-
 @MainActor
 @Observable
 final class AppModel {
@@ -55,9 +37,6 @@ final class AppModel {
     let hooks = HookInstallationCoordinator()
     let discovery = SessionDiscoveryCoordinator()
     let monitoring = ProcessMonitoringCoordinator()
-    var isCodexSetupBusy: Bool { hooks.isCodexSetupBusy }
-    var isClaudeHookSetupBusy: Bool { hooks.isClaudeHookSetupBusy }
-    var isClaudeUsageSetupBusy: Bool { hooks.isClaudeUsageSetupBusy }
     var isBridgeReady = false
     var lastActionMessage = "Waiting for agent hook events..." {
         didSet {
@@ -68,12 +47,6 @@ final class AppModel {
             harnessRuntimeMonitor?.recordLog(lastActionMessage)
         }
     }
-    var codexHookStatus: CodexHookInstallationStatus? { hooks.codexHookStatus }
-    var claudeHookStatus: ClaudeHookInstallationStatus? { hooks.claudeHookStatus }
-    var claudeStatusLineStatus: ClaudeStatusLineInstallationStatus? { hooks.claudeStatusLineStatus }
-    var claudeUsageSnapshot: ClaudeUsageSnapshot? { hooks.claudeUsageSnapshot }
-    var codexUsageSnapshot: CodexUsageSnapshot? { hooks.codexUsageSnapshot }
-    var hooksBinaryURL: URL? { hooks.hooksBinaryURL }
     var isResolvingInitialLiveSessions: Bool {
         get { monitoring.isResolvingInitialLiveSessions }
         set { monitoring.isResolvingInitialLiveSessions = newValue }
@@ -238,20 +211,6 @@ final class AppModel {
             && state.sessions.contains(where: \.isTrackedLiveSession)
     }
 
-    var codexHooksInstalled: Bool { hooks.codexHooksInstalled }
-    var claudeHooksInstalled: Bool { hooks.claudeHooksInstalled }
-    var claudeUsageInstalled: Bool { hooks.claudeUsageInstalled }
-    var claudeHookStatusTitle: String { hooks.claudeHookStatusTitle }
-    var claudeHookStatusSummary: String { hooks.claudeHookStatusSummary }
-    var claudeUsageStatusTitle: String { hooks.claudeUsageStatusTitle }
-    var claudeUsageStatusSummary: String { hooks.claudeUsageStatusSummary }
-    var claudeUsageSummaryText: String? { hooks.claudeUsageSummaryText }
-    var codexUsageStatusTitle: String { hooks.codexUsageStatusTitle }
-    var codexUsageStatusSummary: String { hooks.codexUsageStatusSummary }
-    var codexUsageSummaryText: String? { hooks.codexUsageSummaryText }
-    var codexHookStatusTitle: String { hooks.codexHookStatusTitle }
-    var codexHookStatusSummary: String { hooks.codexHookStatusSummary }
-
     var focusedSession: AgentSession? {
         state.session(id: selectedSessionID) ?? surfacedSessions.first ?? state.activeActionableSession ?? state.sessions.first
     }
@@ -314,7 +273,7 @@ final class AppModel {
                 id: "hooks",
                 title: "Codex hooks installed",
                 detail: "Managed `hooks.json` entries should be present in `~/.codex`.",
-                isComplete: codexHooksInstalled
+                isComplete: hooks.codexHooksInstalled
             ),
             AcceptanceStep(
                 id: "overlay",
@@ -395,11 +354,11 @@ final class AppModel {
             }
 
             // These are already async or lightweight — safe to start immediately.
-            refreshCodexHookStatus()
-            refreshClaudeHookStatus()
-            refreshClaudeUsageState()
+            hooks.refreshCodexHookStatus()
+            hooks.refreshClaudeHookStatus()
+            hooks.refreshClaudeUsageState()
             hooks.startClaudeUsageMonitoringIfNeeded()
-            refreshCodexUsageState()
+            hooks.refreshCodexUsageState()
             hooks.startCodexUsageMonitoringIfNeeded()
         } else {
             isResolvingInitialLiveSessions = false
@@ -814,16 +773,6 @@ final class AppModel {
         )
     }
 
-    func refreshCodexHookStatus() { hooks.refreshCodexHookStatus() }
-    func refreshClaudeHookStatus() { hooks.refreshClaudeHookStatus() }
-    func refreshClaudeUsageState() { hooks.refreshClaudeUsageState() }
-    func refreshCodexUsageState() { hooks.refreshCodexUsageState() }
-    func installCodexHooks() { hooks.installCodexHooks() }
-    func uninstallCodexHooks() { hooks.uninstallCodexHooks() }
-    func installClaudeHooks() { hooks.installClaudeHooks() }
-    func uninstallClaudeHooks() { hooks.uninstallClaudeHooks() }
-    func installClaudeUsageBridge() { hooks.installClaudeUsageBridge() }
-    func uninstallClaudeUsageBridge() { hooks.uninstallClaudeUsageBridge() }
 
     private func send(_ command: BridgeCommand, userMessage: String) {
         lastActionMessage = userMessage

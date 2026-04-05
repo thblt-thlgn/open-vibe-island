@@ -51,12 +51,12 @@ struct ControlCenterView: View {
 
                 usageDebugCard(
                     title: "Claude Hooks",
-                    statusTitle: model.claudeHookStatusTitle,
-                    statusSummary: model.claudeHookStatusSummary,
-                    isActive: model.claudeHooksInstalled || model.claudeHookStatus?.hasClaudeIslandHooks == true,
-                    accentColor: model.claudeHooksInstalled ? .mint : (model.claudeHookStatus?.hasClaudeIslandHooks == true ? .orange : .blue)
+                    statusTitle: model.hooks.claudeHookStatusTitle,
+                    statusSummary: model.hooks.claudeHookStatusSummary,
+                    isActive: model.hooks.claudeHooksInstalled || model.hooks.claudeHookStatus?.hasClaudeIslandHooks == true,
+                    accentColor: model.hooks.claudeHooksInstalled ? .mint : (model.hooks.claudeHookStatus?.hasClaudeIslandHooks == true ? .orange : .blue)
                 ) {
-                    if let status = model.claudeHookStatus {
+                    if let status = model.hooks.claudeHookStatus {
                         metadataRow(title: "settings", value: status.settingsURL.path)
                         metadataRow(title: "manifest", value: status.manifestURL.path)
                         if status.hasClaudeIslandHooks {
@@ -66,34 +66,34 @@ struct ControlCenterView: View {
                 } actions: {
                     HStack(spacing: 10) {
                         Button("Refresh") {
-                            model.refreshClaudeHookStatus()
+                            model.hooks.refreshClaudeHookStatus()
                         }
                         .buttonStyle(DebugActionButtonStyle(kind: .secondary))
 
-                        Button(model.claudeHooksInstalled ? "Remove Hooks" : "Install Hooks") {
-                            if model.claudeHooksInstalled {
-                                model.uninstallClaudeHooks()
+                        Button(model.hooks.claudeHooksInstalled ? "Remove Hooks" : "Install Hooks") {
+                            if model.hooks.claudeHooksInstalled {
+                                model.hooks.uninstallClaudeHooks()
                             } else {
-                                model.installClaudeHooks()
+                                model.hooks.installClaudeHooks()
                             }
                         }
                         .buttonStyle(DebugActionButtonStyle(kind: .primary))
-                        .disabled(model.isClaudeHookSetupBusy || model.hooksBinaryURL == nil)
+                        .disabled(model.hooks.isClaudeHookSetupBusy || model.hooks.hooksBinaryURL == nil)
                     }
                 }
 
                 usageDebugCard(
                     title: "Claude Usage",
-                    statusTitle: model.claudeUsageStatusTitle,
-                    statusSummary: model.claudeUsageStatusSummary,
-                    isActive: model.claudeUsageInstalled || model.claudeStatusLineStatus?.hasConflictingStatusLine == true,
-                    accentColor: model.claudeUsageInstalled ? .mint : (model.claudeStatusLineStatus?.hasConflictingStatusLine == true ? .orange : .blue)
+                    statusTitle: model.hooks.claudeUsageStatusTitle,
+                    statusSummary: model.hooks.claudeUsageStatusSummary,
+                    isActive: model.hooks.claudeUsageInstalled || model.hooks.claudeStatusLineStatus?.hasConflictingStatusLine == true,
+                    accentColor: model.hooks.claudeUsageInstalled ? .mint : (model.hooks.claudeStatusLineStatus?.hasConflictingStatusLine == true ? .orange : .blue)
                 ) {
-                    if let summary = model.claudeUsageSummaryText {
+                    if let summary = model.hooks.claudeUsageSummaryText {
                         metadataRow(title: "usage", value: summary)
                     }
 
-                    if let status = model.claudeStatusLineStatus {
+                    if let status = model.hooks.claudeStatusLineStatus {
                         metadataRow(title: "settings", value: status.settingsURL.path)
                         metadataRow(title: "script", value: status.scriptURL.path)
                         metadataRow(title: "cache", value: status.cacheURL.path)
@@ -101,34 +101,34 @@ struct ControlCenterView: View {
                 } actions: {
                     HStack(spacing: 10) {
                         Button("Refresh") {
-                            model.refreshClaudeUsageState()
+                            model.hooks.refreshClaudeUsageState()
                         }
                         .buttonStyle(DebugActionButtonStyle(kind: .secondary))
 
-                        Button(model.claudeUsageInstalled ? "Remove Bridge" : "Install Bridge") {
-                            if model.claudeUsageInstalled {
-                                model.uninstallClaudeUsageBridge()
+                        Button(model.hooks.claudeUsageInstalled ? "Remove Bridge" : "Install Bridge") {
+                            if model.hooks.claudeUsageInstalled {
+                                model.hooks.uninstallClaudeUsageBridge()
                             } else {
-                                model.installClaudeUsageBridge()
+                                model.hooks.installClaudeUsageBridge()
                             }
                         }
                         .buttonStyle(DebugActionButtonStyle(kind: .primary))
-                        .disabled(model.isClaudeUsageSetupBusy || model.claudeStatusLineStatus?.hasConflictingStatusLine == true)
+                        .disabled(model.hooks.isClaudeUsageSetupBusy || model.hooks.claudeStatusLineStatus?.hasConflictingStatusLine == true)
                     }
                 }
 
                 usageDebugCard(
                     title: "Codex Usage",
-                    statusTitle: model.codexUsageStatusTitle,
-                    statusSummary: model.codexUsageStatusSummary,
-                    isActive: model.codexUsageSnapshot?.isEmpty == false,
-                    accentColor: model.codexUsageSnapshot?.isEmpty == false ? .mint : .blue
+                    statusTitle: model.hooks.codexUsageStatusTitle,
+                    statusSummary: model.hooks.codexUsageStatusSummary,
+                    isActive: model.hooks.codexUsageSnapshot?.isEmpty == false,
+                    accentColor: model.hooks.codexUsageSnapshot?.isEmpty == false ? .mint : .blue
                 ) {
-                    if let summary = model.codexUsageSummaryText {
+                    if let summary = model.hooks.codexUsageSummaryText {
                         metadataRow(title: "usage", value: summary)
                     }
 
-                    if let snapshot = model.codexUsageSnapshot {
+                    if let snapshot = model.hooks.codexUsageSnapshot {
                         metadataRow(title: "latest rollout", value: snapshot.sourceFilePath)
 
                         if let planType = snapshot.planType {
@@ -145,7 +145,7 @@ struct ControlCenterView: View {
                 } actions: {
                     HStack(spacing: 10) {
                         Button("Refresh") {
-                            model.refreshCodexUsageState()
+                            model.hooks.refreshCodexUsageState()
                         }
                         .buttonStyle(DebugActionButtonStyle(kind: .secondary))
                     }

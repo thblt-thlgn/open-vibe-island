@@ -167,7 +167,7 @@ struct GeneralSettingsPane: View {
                 HStack {
                     Text("Claude Code")
                     Spacer()
-                    if model.claudeHooksInstalled {
+                    if model.hooks.claudeHooksInstalled {
                         HStack(spacing: 4) {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
@@ -176,16 +176,16 @@ struct GeneralSettingsPane: View {
                         }
                     } else {
                         Button("安装") {
-                            model.installClaudeHooks()
+                            model.hooks.installClaudeHooks()
                         }
-                        .disabled(model.hooksBinaryURL == nil)
+                        .disabled(model.hooks.hooksBinaryURL == nil)
                     }
                 }
 
                 HStack {
                     Text("Codex")
                     Spacer()
-                    if model.codexHooksInstalled {
+                    if model.hooks.codexHooksInstalled {
                         HStack(spacing: 4) {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
@@ -194,9 +194,9 @@ struct GeneralSettingsPane: View {
                         }
                     } else {
                         Button("安装") {
-                            model.installCodexHooks()
+                            model.hooks.installCodexHooks()
                         }
-                        .disabled(model.hooksBinaryURL == nil)
+                        .disabled(model.hooks.hooksBinaryURL == nil)
                     }
                 }
             }

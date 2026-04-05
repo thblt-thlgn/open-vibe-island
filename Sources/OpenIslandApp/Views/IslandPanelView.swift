@@ -488,7 +488,7 @@ struct IslandPanelView: View {
     private var openedUsageProviders: [UsageProviderPresentation] {
         var providers: [UsageProviderPresentation] = []
 
-        if let snapshot = model.claudeUsageSnapshot,
+        if let snapshot = model.hooks.claudeUsageSnapshot,
            snapshot.isEmpty == false {
             var windows: [UsageWindowPresentation] = []
 
@@ -525,7 +525,7 @@ struct IslandPanelView: View {
             }
         }
 
-        if let snapshot = model.codexUsageSnapshot,
+        if let snapshot = model.hooks.codexUsageSnapshot,
            snapshot.isEmpty == false {
             let windows = snapshot.windows.map { window in
                 UsageWindowPresentation(
@@ -1563,50 +1563,50 @@ struct MenuBarContentView: View {
 
             Divider()
 
-            Text(model.codexHookStatusTitle)
+            Text(model.hooks.codexHookStatusTitle)
                 .font(.subheadline.weight(.semibold))
-            Text(model.codexHookStatusSummary)
+            Text(model.hooks.codexHookStatusSummary)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             Button("Refresh Codex Hook Status") {
-                model.refreshCodexHookStatus()
+                model.hooks.refreshCodexHookStatus()
             }
 
-            if model.codexHooksInstalled {
+            if model.hooks.codexHooksInstalled {
                 Button("Uninstall Codex Hooks") {
-                    model.uninstallCodexHooks()
+                    model.hooks.uninstallCodexHooks()
                 }
             } else {
                 Button("Install Codex Hooks") {
-                    model.installCodexHooks()
+                    model.hooks.installCodexHooks()
                 }
-                .disabled(model.hooksBinaryURL == nil)
+                .disabled(model.hooks.hooksBinaryURL == nil)
             }
 
             Divider()
 
-            Text(model.claudeHookStatusTitle)
+            Text(model.hooks.claudeHookStatusTitle)
                 .font(.subheadline.weight(.semibold))
-            Text(model.claudeHookStatusSummary)
+            Text(model.hooks.claudeHookStatusSummary)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             Button("Refresh Claude Hook Status") {
-                model.refreshClaudeHookStatus()
+                model.hooks.refreshClaudeHookStatus()
             }
 
-            if model.claudeHooksInstalled {
+            if model.hooks.claudeHooksInstalled {
                 Button("Uninstall Claude Hooks") {
-                    model.uninstallClaudeHooks()
+                    model.hooks.uninstallClaudeHooks()
                 }
             } else {
                 Button("Install Claude Hooks") {
-                    model.installClaudeHooks()
+                    model.hooks.installClaudeHooks()
                 }
-                .disabled(model.hooksBinaryURL == nil)
+                .disabled(model.hooks.hooksBinaryURL == nil)
             }
 
             if let session = model.focusedSession {
