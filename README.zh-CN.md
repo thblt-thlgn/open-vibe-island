@@ -48,6 +48,41 @@
 
 待补充
 
+### 功能状态
+
+#### Agent 集成
+- [x] **Codex** — 完整 hook 集成（SessionStart、UserPromptSubmit、Stop），用量追踪
+- [x] **Claude Code** — Hook 集成、JSONL transcript 会话发现、status line bridge、用量追踪
+- [ ] **Cursor** — 规划中
+- [ ] **Windsurf** — 规划中
+
+#### 终端支持
+- [x] **Terminal.app** — 完整 jump-back，TTY 定位
+- [x] **Ghostty** — 完整 jump-back，ID 匹配
+- [x] **cmux** — 完整 jump-back，Unix socket API
+- [x] **iTerm2** — AppleScript 会话定位
+- [ ] **Warp** — 仅降级检测，完整集成规划中
+- [ ] **WezTerm** — 仅降级检测，完整集成规划中
+
+#### UI 与显示
+- [x] 刘海覆盖层（刘海 Mac）/ 顶部居中栏（无刘海 Mac）
+- [x] 控制中心（hook 状态、用量仪表盘）
+- [x] 设置（通用、显示、声音、快捷键、实验室、关于）
+- [x] 通知模式（自适应高度面板）
+- [x] 通知音效（可配置系统音效、静音切换）
+- [x] 国际化（English、简体中文）
+
+#### 会话管理
+- [x] Live session 可见性，支持可展开的详情行
+- [x] 从本地 transcript 自动发现会话
+- [x] 通过 `ps`/`lsof` 进程发现
+- [x] 跨应用启动的会话持久化
+
+#### 分发
+- [x] DMG 打包，支持签名和公证
+- [x] GitHub Actions 发布工作流
+- [ ] 自动更新（Sparkle 或类似方案）
+
 ## 社区
 
 目前项目还在早期阶段，在体验中可能会出现任何问题，加入微信群/discord以获得更快的反馈和更高的解决优先级

@@ -48,6 +48,41 @@ This app may install hooks for Claude Code or Codex, so you may see hook-related
 
 TBD
 
+### Feature Status
+
+#### Agent Integrations
+- [x] **Codex** — Full hook integration (SessionStart, UserPromptSubmit, Stop), usage tracking
+- [x] **Claude Code** — Hook integration, session discovery from JSONL transcripts, status line bridge, usage tracking
+- [ ] **Cursor** — Planned
+- [ ] **Windsurf** — Planned
+
+#### Terminal Support
+- [x] **Terminal.app** — Full jump-back with TTY targeting
+- [x] **Ghostty** — Full jump-back with ID matching
+- [x] **cmux** — Full jump-back via Unix socket API
+- [x] **iTerm2** — AppleScript session targeting
+- [ ] **Warp** — Fallback detection only, full integration planned
+- [ ] **WezTerm** — Fallback detection only, full integration planned
+
+#### UI & Display
+- [x] Notch overlay (notch Macs) / top-center bar (non-notch Macs)
+- [x] Control center with hook status and usage dashboard
+- [x] Settings (General, Display, Sound, Shortcuts, Lab, About)
+- [x] Notification mode with auto-height panel
+- [x] Notification sounds (configurable system sounds, mute toggle)
+- [x] i18n (English, Simplified Chinese)
+
+#### Session Management
+- [x] Live session visibility with expandable detail rows
+- [x] Automatic session discovery from local transcripts
+- [x] Process discovery via `ps`/`lsof`
+- [x] Session persistence across app launches
+
+#### Distribution
+- [x] DMG packaging with signing and notarization support
+- [x] GitHub Actions release workflow
+- [ ] Auto-update (Sparkle or similar)
+
 ## Community
 
 The project is still at an early stage — you may encounter issues along the way. Join the WeChat group or Discord for faster feedback and higher resolution priority.
