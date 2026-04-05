@@ -469,13 +469,33 @@ struct IslandPanelView: View {
 
     private var sessionList: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
-            ScrollView(.vertical) {
+            if isNotificationMode {
+                // Notification mode: NO ScrollView — content sizes naturally
                 sessionListContent(context: context)
+                    .padding(.vertical, 2)
+                    .background(
+                        GeometryReader { geo in
+                            Color.clear.preference(
+                                key: NotificationContentHeightKey.self,
+                                value: geo.size.height
+                            )
+                        }
+                    )
+                    .onPreferenceChange(NotificationContentHeightKey.self) { height in
+                        if height > 0 {
+                            model.measuredNotificationContentHeight = height
+                        }
+                    }
+            } else {
+                // List mode: scrollable
+                ScrollView(.vertical) {
+                    sessionListContent(context: context)
+                }
+                .scrollIndicators(.automatic, axes: .vertical)
+                .scrollContentBackground(.hidden)
+                .frame(maxHeight: Self.maxSessionListHeight)
+                .padding(.vertical, 2)
             }
-            .scrollIndicators(.automatic, axes: .vertical)
-            .scrollContentBackground(.hidden)
-            .frame(maxHeight: Self.maxSessionListHeight)
-            .padding(.vertical, 2)
         }
     }
 

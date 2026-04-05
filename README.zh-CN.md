@@ -38,6 +38,11 @@
 如果你想现在就开始做贡献，可以先加入微信群：
 
 <img src="docs/images/wechat-group.jpg" alt="Open Island 微信群二维码" width="360">
+  
+## 路线图
+
+4.6 发布测试版
+
 
 ## Agent Parts
 
@@ -152,13 +157,6 @@ swift run OpenIslandSetup uninstall
 - 更少的标签页来回寻找
 - 更少的会话感知摩擦
 - 更快地回到当前活跃 agent session
-
-## 路线图
-
-1. 先交付一个扎实的单 agent macOS MVP
-2. 强化 approvals 和 jump-back behavior
-3. 改进 multi-session handling
-4. 再逐步扩展到更多 agent integrations
 
 ## 贡献
 

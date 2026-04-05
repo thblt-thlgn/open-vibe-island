@@ -456,7 +456,7 @@ final class OverlayPanelController {
         if isNotificationMode {
             // Use SwiftUI-measured height when available (accurate after first render).
             if model.measuredNotificationContentHeight > 0 {
-                return model.measuredNotificationContentHeight + 8
+                return model.measuredNotificationContentHeight + 28
             }
             // First render: use generous height so content isn't clipped.
             // SwiftUI will measure actual height and trigger a resize.
