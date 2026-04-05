@@ -41,7 +41,10 @@ final class AppModel {
     }
 
     var state = SessionState() {
-        didSet { _cachedSessionBuckets = nil }
+        didSet {
+            _cachedSessionBuckets = nil
+            bridgeServer.updateStateSnapshot(state)
+        }
     }
     @ObservationIgnored private var _cachedSessionBuckets: (primary: [AgentSession], overflow: [AgentSession])?
     var selectedSessionID: String?
