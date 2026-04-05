@@ -375,12 +375,20 @@ public extension AgentSession {
         attachmentState.isLive
     }
 
+    /// Grace period after completion before the session becomes invisible.
+    /// Keeps the completed notification card visible long enough for the user to see it.
+    private static let completedVisibilityGrace: TimeInterval = 30
+
     /// New visibility rule based on process liveness (Phase 1: parallel, not yet driving UI).
     /// Will replace `isAttachedToTerminal` in Phase 3.
     var isVisibleInIsland: Bool {
         if isDemoSession { return true }
         if phase.requiresAttention { return true }
         if isProcessAlive { return true }
+        if phase == .completed,
+           Date.now.timeIntervalSince(updatedAt) < Self.completedVisibilityGrace {
+            return true
+        }
         return false
     }
 
