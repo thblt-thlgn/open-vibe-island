@@ -46,7 +46,7 @@ I do not want to run a closed-source paid app on my own computer just to monitor
 
 ### Notes
 
-This app may install hooks for Claude Code or Codex, so you may see hook-related output inside those sessions.
+This app may install hooks for Claude Code or Codex, so you may see hook-related output inside those sessions. See [docs/hooks.md](docs/hooks.md) for the full list of supported hook events and the directive protocol.
 
 ### Feature Status
 
@@ -227,6 +227,7 @@ Claude usage setup is available from the app's control center and remains opt-in
 
 - Start with [docs/index.md](docs/index.md) for the current doc map.
 - Read [docs/quality.md](docs/quality.md) for the quality baseline and verification approach.
+- Read [docs/hooks.md](docs/hooks.md) for all supported hook events, payload fields, and directive response formats.
 - Run `scripts/harness.sh` for automated checks (docs validation, tests, build).
 
 ## Requirements
