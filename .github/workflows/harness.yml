@@ -1,4 +1,4 @@
-name: Harness
+name: CI
 
 on:
   pull_request:
@@ -14,7 +14,7 @@ on:
 
 jobs:
   harness:
-    runs-on: macos-15
+    runs-on: macos-26
 
     steps:
       - uses: actions/checkout@v4
@@ -22,5 +22,5 @@ jobs:
       - name: Show Swift Version
         run: swift --version
 
-      - name: Run Harness Baseline
+      - name: Run CI checks
         run: zsh scripts/harness.sh ci
