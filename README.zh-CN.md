@@ -26,6 +26,10 @@
 
 这是一个开源的 [Vibe Island](https://vibeisland.app/) 替代品，面向 macOS 上的重度 code agent 用户。目前支持 **Claude Code** 和 **Codex**，终端集成覆盖 **Terminal.app**、**Ghostty** 和 **cmux**，并对 iTerm2、Warp、WezTerm 提供降级检测支持。
 
+<p align="center">
+  <img src="docs/images/screenshot-overview.png" alt="Open Island 截图" width="720">
+</p>
+
 ### 动机
 
 我不想在自己的电脑上运行一个闭源、付费的软件来监视我所有的生产过程，所以我 build 了这个开源版本。
@@ -43,10 +47,6 @@
 ### 注意事项
 
 本应用可能会为你的 Claude Code 或 Codex 安装 hooks，因此你可能会在这些会话中看到 hook 相关输出。
-
-### Demo
-
-待补充
 
 ### 功能状态
 

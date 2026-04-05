@@ -26,6 +26,10 @@ This section is written for humans.
 
 An open-source [Vibe Island](https://vibeisland.app/) alternative for heavy code-agent users on macOS. Currently supports **Claude Code** and **Codex**, with terminal integration for **Terminal.app**, **Ghostty**, and **cmux**, plus fallback detection for iTerm2, Warp, and WezTerm.
 
+<p align="center">
+  <img src="docs/images/screenshot-overview.png" alt="Open Island screenshot" width="720">
+</p>
+
 ### Motivation
 
 I do not want to run a closed-source paid app on my own computer just to monitor my entire production flow, so I built an open-source version instead.
@@ -43,10 +47,6 @@ I do not want to run a closed-source paid app on my own computer just to monitor
 ### Notes
 
 This app may install hooks for Claude Code or Codex, so you may see hook-related output inside those sessions.
-
-### Demo
-
-TBD
 
 ### Feature Status
 
