@@ -35,8 +35,11 @@ hooks_binary="$build_bin_dir/OpenIslandHooks"
 setup_binary="$build_bin_dir/OpenIslandSetup"
 brand_icon="$repo_root/Assets/Brand/OpenIsland.icns"
 
-python3 "$brand_script"
-python3 "$dmg_bg_script"
+# Prefer a python3 that has Pillow (system python3 on macOS may be 3.8 without it)
+python3_bin="$(command -v python3.13 || command -v python3.12 || command -v python3.11 || command -v python3)"
+
+"$python3_bin" "$brand_script"
+"$python3_bin" "$dmg_bg_script"
 
 rm -rf "$bundle_dir" "$zip_path" "$dmg_path"
 mkdir -p "$bundle_dir/Contents/MacOS" "$bundle_dir/Contents/Helpers" "$bundle_dir/Contents/Resources"
