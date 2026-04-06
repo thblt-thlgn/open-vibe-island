@@ -21,6 +21,20 @@ security find-identity -v -p codesigning
 
 If that command reports `0 valid identities found`, packaging is limited to unsigned output until the certificate is created in the Apple Developer account and imported into the login keychain.
 
+### "Open Island is damaged and can't be opened"
+
+This Gatekeeper error appears when macOS quarantines an unsigned or un-notarized download. There are two workarounds:
+
+**Option 1 — remove quarantine (internal/dev use only):**
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Open Island.app"
+```
+
+Or right-click the app → **Open** → click **Open** to bypass the block once.
+
+**Option 2 — sign and notarize (required for external distribution):** follow the section below.
+
 ## Signing And Notarization
 
 When a signing identity is available, pass it in with environment variables:
@@ -30,9 +44,9 @@ OPEN_ISLAND_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
 zsh scripts/package-app.sh
 ```
 
-The script signs the helper binaries first, then signs the app bundle with the Apple Events entitlement declared in `config/packaging/OpenIslandApp.entitlements`.
+The script signs the helper binaries and app bundle, then also signs the DMG itself (required for notarization). Entitlements are declared in `config/packaging/OpenIslandApp.entitlements`.
 
-If a `notarytool` keychain profile is already stored, the same script can also notarize and staple:
+If a `notarytool` keychain profile is already stored, the same script notarizes and staples in the correct order (app bundle first so the stapled bundle is embedded in the DMG, then the DMG):
 
 ```bash
 OPEN_ISLAND_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" \

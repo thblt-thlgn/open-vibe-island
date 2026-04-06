@@ -118,6 +118,14 @@ fi
 
 ditto -c -k --keepParent "$bundle_dir" "$zip_path"
 
+# --- Notarize app bundle (before DMG so the stapled bundle goes into the DMG) ---
+if [[ -n "$signing_identity" && -n "$notary_profile" ]]; then
+    xcrun notarytool submit "$zip_path" --keychain-profile "$notary_profile" --wait
+    xcrun stapler staple -v "$bundle_dir"
+    rm -f "$zip_path"
+    ditto -c -k --keepParent "$bundle_dir" "$zip_path"
+fi
+
 # --- Styled DMG creation ---
 dmg_bg="$repo_root/Assets/Brand/dmg-background@2x.png"
 
@@ -135,12 +143,17 @@ create-dmg \
     "$dmg_path" \
     "$bundle_dir"
 
-if [[ -n "$signing_identity" && -n "$notary_profile" ]]; then
-    xcrun notarytool submit "$zip_path" --keychain-profile "$notary_profile" --wait
-    xcrun stapler staple -v "$bundle_dir"
-    rm -f "$zip_path"
-    ditto -c -k --keepParent "$bundle_dir" "$zip_path"
+# Sign the DMG itself (required before notarization)
+if [[ -n "$signing_identity" ]]; then
+    codesign \
+        --force \
+        --sign "$signing_identity" \
+        --timestamp \
+        "$dmg_path"
+fi
 
+# Notarize and staple the DMG
+if [[ -n "$signing_identity" && -n "$notary_profile" ]]; then
     xcrun notarytool submit "$dmg_path" --keychain-profile "$notary_profile" --wait
     xcrun stapler staple -v "$dmg_path"
 fi
