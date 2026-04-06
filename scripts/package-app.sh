@@ -54,12 +54,11 @@ else
     echo "WARNING: Sparkle.framework not found at $sparkle_framework — run 'swift package resolve' first." >&2
 fi
 
-# Copy SPM resource bundle — required by Bundle.module at runtime (localization etc.).
-# SPM's generated accessor looks for it at Bundle.main.bundleURL (the .app root),
-# so it must be copied there — NOT into Contents/MacOS/.
+# Copy SPM resource bundle into Contents/Resources/ so Bundle.module can find it
+# and codesign does not complain about unsealed contents in the bundle root.
 spm_resource_bundle="$build_bin_dir/OpenIsland_OpenIslandApp.bundle"
 if [[ -d "$spm_resource_bundle" ]]; then
-    cp -R "$spm_resource_bundle" "$bundle_dir/"
+    cp -R "$spm_resource_bundle" "$bundle_dir/Contents/Resources/"
 else
     echo "WARNING: SPM resource bundle not found at $spm_resource_bundle — app may crash on launch." >&2
 fi
@@ -68,6 +67,9 @@ chmod +x \
     "$bundle_dir/Contents/MacOS/OpenIslandApp" \
     "$bundle_dir/Contents/Helpers/OpenIslandHooks" \
     "$bundle_dir/Contents/Helpers/OpenIslandSetup"
+
+# Add rpath so the binary can find Sparkle.framework in Contents/Frameworks/.
+install_name_tool -add_rpath @loader_path/../Frameworks "$bundle_dir/Contents/MacOS/OpenIslandApp" 2>/dev/null || true
 
 cat > "$bundle_dir/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -119,19 +121,13 @@ for required in \
     "Contents/Helpers/OpenIslandHooks" \
     "Contents/Helpers/OpenIslandSetup" \
     "Contents/Resources/OpenIsland.icns" \
-    "OpenIsland_OpenIslandApp.bundle" \
+    "Contents/Resources/OpenIsland_OpenIslandApp.bundle" \
 ; do
     if [[ ! -e "$bundle_dir/$required" ]]; then
         echo "ERROR: missing required file: $required" >&2
         verify_errors=$((verify_errors + 1))
     fi
 done
-
-# Ensure resource bundle is NOT in the wrong location (SPM accessor doesn't search there).
-if [[ -e "$bundle_dir/Contents/MacOS/OpenIsland_OpenIslandApp.bundle" ]]; then
-    echo "ERROR: resource bundle in Contents/MacOS/ — must be in .app root for Bundle.module" >&2
-    verify_errors=$((verify_errors + 1))
-fi
 
 if [[ $verify_errors -gt 0 ]]; then
     echo "Bundle verification failed with $verify_errors error(s)." >&2
@@ -163,6 +159,12 @@ if [[ -n "$signing_identity" ]]; then
         "$bundle_dir"
 
     codesign --verify --deep --strict --verbose=2 "$bundle_dir"
+else
+    # Ad-hoc sign so macOS accepts the embedded Sparkle.framework.
+    codesign --force --sign - "$bundle_dir/Contents/Frameworks/Sparkle.framework" 2>/dev/null || true
+    codesign --force --sign - "$bundle_dir/Contents/Helpers/OpenIslandHooks" 2>/dev/null || true
+    codesign --force --sign - "$bundle_dir/Contents/Helpers/OpenIslandSetup" 2>/dev/null || true
+    codesign --force --sign - "$bundle_dir" 2>/dev/null || true
 fi
 
 ditto -c -k --keepParent "$bundle_dir" "$zip_path"

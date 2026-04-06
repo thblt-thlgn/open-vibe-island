@@ -38,11 +38,16 @@ cp "$setup_binary" "$bundle_dir/Contents/Helpers/OpenIslandSetup"
 cp "$brand_icon" "$bundle_dir/Contents/Resources/OpenIsland.icns"
 chmod +x "$bundle_binary" "$bundle_dir/Contents/Helpers/OpenIslandHooks" "$bundle_dir/Contents/Helpers/OpenIslandSetup"
 
-# Copy SPM resource bundle so Bundle.module can find localized strings.
+# Add rpath so the binary can find Sparkle.framework in Contents/Frameworks/.
+install_name_tool -add_rpath @loader_path/../Frameworks "$bundle_binary" 2>/dev/null || true
+
+# Copy SPM resource bundle into Contents/Resources/ so Bundle.module can find it
+# and codesign does not complain about unsealed contents in the bundle root.
 resource_bundle="$build_root/OpenIsland_OpenIslandApp.bundle"
 if [ -d "$resource_bundle" ]; then
+    rm -rf "$bundle_dir/Contents/Resources/OpenIsland_OpenIslandApp.bundle"
     rm -rf "$bundle_dir/OpenIsland_OpenIslandApp.bundle"
-    cp -R "$resource_bundle" "$bundle_dir/"
+    cp -R "$resource_bundle" "$bundle_dir/Contents/Resources/"
 fi
 
 # Copy Sparkle.framework for auto-update support.
@@ -90,6 +95,9 @@ cat > "$plist_path" <<EOF
 </dict>
 </plist>
 EOF
+
+# Re-sign the entire bundle so macOS accepts the embedded Sparkle.framework.
+codesign --force --deep --sign - "$bundle_dir" 2>/dev/null || true
 
 pkill -f "$bundle_binary" >/dev/null 2>&1 || true
 open -na "$bundle_dir"

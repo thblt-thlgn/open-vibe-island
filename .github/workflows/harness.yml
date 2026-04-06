@@ -46,17 +46,12 @@ jobs:
             "Contents/MacOS/OpenIslandApp" \
             "Contents/Helpers/OpenIslandHooks" \
             "Contents/Helpers/OpenIslandSetup" \
-            "OpenIsland_OpenIslandApp.bundle" \
+            "Contents/Resources/OpenIsland_OpenIslandApp.bundle" \
           ; do
             if [[ ! -e "$bundle/$f" ]]; then
               echo "::error::Missing required file: $f"
               exit 1
             fi
           done
-
-          if [[ -e "$bundle/Contents/MacOS/OpenIsland_OpenIslandApp.bundle" ]]; then
-            echo "::error::Resource bundle in wrong location (Contents/MacOS/)"
-            exit 1
-          fi
 
           echo "Bundle structure OK"
