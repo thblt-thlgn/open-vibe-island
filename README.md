@@ -24,7 +24,7 @@ This section is written for humans.
 
 ### What This Is
 
-An open-source [Vibe Island](https://vibeisland.app/) alternative for heavy code-agent users on macOS. Currently supports **Claude Code** and **Codex**, with terminal integration for **Terminal.app**, **Ghostty**, **cmux**, **Kaku**, **WezTerm**, and **iTerm2**, plus fallback detection for Warp.
+An open-source [Vibe Island](https://vibeisland.app/) alternative for heavy code-agent users on macOS. Currently supports **Claude Code**, **Codex**, and **OpenCode**, with terminal integration for **Terminal.app**, **Ghostty**, **cmux**, **Kaku**, **WezTerm**, and **iTerm2**, plus fallback detection for Warp.
 
 <p align="center">
   <img src="docs/images/screenshot-overview.png" alt="Open Island screenshot" width="720">
@@ -56,7 +56,7 @@ This app may install hooks for Claude Code or Codex, so you may see hook-related
 |---|---|---|
 | **Claude Code** | Supported | Hook integration, JSONL session discovery, status line bridge, usage tracking |
 | **Codex** | Supported | Full hook integration (SessionStart, UserPromptSubmit, Stop), usage tracking |
-| **OpenCode** | Planned | — |
+| **OpenCode** | Supported | JS plugin integration, permission/question flows, process detection |
 | **Gemini CLI** | Planned | — |
 
 #### Supported Terminals
@@ -174,6 +174,7 @@ Developers who already live in the terminal and want a better way to work with c
 
 - **Codex** — Full hook-based integration. Receives `SessionStart`, `UserPromptSubmit`, and `Stop` events by default. Reads 5-hour and 7-day account usage windows from local rollout files. Install/uninstall managed hooks from the control center or CLI.
 - **Claude Code** — Hook-based integration via `~/.claude/settings.json`. Discovers sessions from `~/.claude/projects/` JSONL transcripts. Persists and restores sessions across app launches. Managed status line bridge with opt-in installation. Reads cached 5-hour and 7-day usage windows.
+- **OpenCode** — JS plugin integration via `~/.config/opencode/plugins/`. Plugin auto-installed on first launch. Receives session lifecycle, tool use, permission, and question events. Permission approval and question answering flows supported. Process detection via `ps`.
 
 ### Terminal Support
 

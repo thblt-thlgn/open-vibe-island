@@ -24,7 +24,7 @@
 
 ### 这是什么
 
-这是一个开源的 [Vibe Island](https://vibeisland.app/) 替代品，面向 macOS 上的重度 code agent 用户。目前支持 **Claude Code** 和 **Codex**，终端集成覆盖 **Terminal.app**、**Ghostty**、**cmux**、**Kaku**、**WezTerm** 和 **iTerm2**，并对 Warp 提供降级检测支持。
+这是一个开源的 [Vibe Island](https://vibeisland.app/) 替代品，面向 macOS 上的重度 code agent 用户。目前支持 **Claude Code**、**Codex** 和 **OpenCode**，终端集成覆盖 **Terminal.app**、**Ghostty**、**cmux**、**Kaku**、**WezTerm** 和 **iTerm2**，并对 Warp 提供降级检测支持。
 
 <p align="center">
   <img src="docs/images/screenshot-overview.png" alt="Open Island 截图" width="720">
@@ -56,7 +56,7 @@
 |---|---|---|
 | **Claude Code** | 已支持 | Hook 集成、JSONL 会话发现、status line bridge、用量追踪 |
 | **Codex** | 已支持 | 完整 hook 集成（SessionStart、UserPromptSubmit、Stop）、用量追踪 |
-| **opencode** | 规划中 | — |
+| **OpenCode** | 已支持 | JS 插件集成、权限/问答交互、进程检测 |
 | **gemini cli** | 规划中 | — |
 
 #### 支持的终端
