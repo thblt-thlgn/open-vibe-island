@@ -24,7 +24,7 @@ This section is written for humans.
 
 ### What This Is
 
-An open-source [Vibe Island](https://vibeisland.app/) alternative for heavy code-agent users on macOS. Currently supports **Claude Code** and **Codex**, with terminal integration for **Terminal.app**, **Ghostty**, and **cmux**, plus fallback detection for iTerm2, Warp, and WezTerm.
+An open-source [Vibe Island](https://vibeisland.app/) alternative for heavy code-agent users on macOS. Currently supports **Claude Code** and **Codex**, with terminal integration for **Terminal.app**, **Ghostty**, **cmux**, **Kaku**, and **WezTerm**, plus fallback detection for iTerm2 and Warp.
 
 <p align="center">
   <img src="docs/images/screenshot-overview.png" alt="Open Island screenshot" width="720">
@@ -66,9 +66,10 @@ This app may install hooks for Claude Code or Codex, so you may see hook-related
 | **Terminal.app** | Full Support | Jump-back with TTY targeting |
 | **Ghostty** | Full Support | Jump-back with ID matching |
 | **cmux** | Full Support | Jump-back via Unix socket API |
+| **Kaku** | Full Support | Jump-back via CLI pane targeting |
+| **WezTerm** | Full Support | Jump-back via CLI pane targeting |
 | **iTerm2** | Partial | AppleScript session targeting |
 | **Warp** | Planned | Fallback detection only |
-| **WezTerm** | Planned | Fallback detection only |
 
 #### Other Features
 
@@ -160,8 +161,8 @@ Developers who already live in the terminal and want a better way to work with c
 
 ### Terminal Support
 
-- **Terminal.app**, **Ghostty**, and **cmux** — Full jump-back support with session attachment matching (cmux via Unix socket API)
-- **iTerm2, Warp, WezTerm** — Fallback detection and basic process discovery
+- **Terminal.app**, **Ghostty**, **cmux**, **Kaku**, and **WezTerm** — Full jump-back support with session attachment matching (cmux via Unix socket API, Kaku/WezTerm via CLI pane targeting)
+- **iTerm2, Warp** — Fallback detection and basic process discovery
 
 ### UI & Display
 
