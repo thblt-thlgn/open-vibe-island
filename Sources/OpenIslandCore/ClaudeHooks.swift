@@ -294,6 +294,8 @@ public struct ClaudeHookPayload: Equatable, Codable, Sendable {
     public var terminalSessionID: String?
     public var terminalTTY: String?
     public var terminalTitle: String?
+    /// Set to `true` by the Python hook client to indicate a remote (SSH) session.
+    public var remote: Bool?
 
     private enum CodingKeys: String, CodingKey {
         case cwd
@@ -324,6 +326,7 @@ public struct ClaudeHookPayload: Equatable, Codable, Sendable {
         case terminalSessionID = "terminal_session_id"
         case terminalTTY = "terminal_tty"
         case terminalTitle = "terminal_title"
+        case remote
     }
 
     public init(
@@ -354,7 +357,8 @@ public struct ClaudeHookPayload: Equatable, Codable, Sendable {
         terminalApp: String? = nil,
         terminalSessionID: String? = nil,
         terminalTTY: String? = nil,
-        terminalTitle: String? = nil
+        terminalTitle: String? = nil,
+        remote: Bool? = nil
     ) {
         self.cwd = cwd
         self.hookEventName = hookEventName
@@ -384,6 +388,7 @@ public struct ClaudeHookPayload: Equatable, Codable, Sendable {
         self.terminalSessionID = terminalSessionID
         self.terminalTTY = terminalTTY
         self.terminalTitle = terminalTitle
+        self.remote = remote
     }
 }
 

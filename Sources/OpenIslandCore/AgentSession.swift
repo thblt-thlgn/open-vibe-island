@@ -274,6 +274,9 @@ public struct AgentSession: Equatable, Identifiable, Codable, Sendable {
     public var claudeMetadata: ClaudeSessionMetadata?
     public var openCodeMetadata: OpenCodeSessionMetadata?
 
+    /// Whether this session originates from a remote (SSH) connection.
+    public var isRemote: Bool = false
+
     /// Whether the agent process is currently alive according to process discovery.
     /// Populated in parallel with the existing attachment system during Phase 1.
     public var isProcessAlive: Bool = false

@@ -12,6 +12,7 @@ public struct SessionStarted: Equatable, Codable, Sendable {
     public var codexMetadata: CodexSessionMetadata?
     public var claudeMetadata: ClaudeSessionMetadata?
     public var openCodeMetadata: OpenCodeSessionMetadata?
+    public var isRemote: Bool
 
     public init(
         sessionID: String,
@@ -24,7 +25,8 @@ public struct SessionStarted: Equatable, Codable, Sendable {
         jumpTarget: JumpTarget? = nil,
         codexMetadata: CodexSessionMetadata? = nil,
         claudeMetadata: ClaudeSessionMetadata? = nil,
-        openCodeMetadata: OpenCodeSessionMetadata? = nil
+        openCodeMetadata: OpenCodeSessionMetadata? = nil,
+        isRemote: Bool = false
     ) {
         self.sessionID = sessionID
         self.title = title
@@ -37,6 +39,7 @@ public struct SessionStarted: Equatable, Codable, Sendable {
         self.codexMetadata = codexMetadata
         self.claudeMetadata = claudeMetadata
         self.openCodeMetadata = openCodeMetadata
+        self.isRemote = isRemote
     }
 }
 

@@ -70,6 +70,7 @@ public struct SessionState: Equatable, Sendable {
                 claudeMetadata: payload.claudeMetadata?.isEmpty == true ? nil : payload.claudeMetadata,
                 openCodeMetadata: payload.openCodeMetadata?.isEmpty == true ? nil : payload.openCodeMetadata
             )
+            session.isRemote = payload.isRemote
             session.isProcessAlive = true
             session.processNotSeenCount = 0
             upsert(session)

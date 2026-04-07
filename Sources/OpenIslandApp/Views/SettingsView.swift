@@ -422,6 +422,8 @@ struct SetupSettingsPane: View {
                 }
             }
 
+            RemoteConnectionSection(model: model)
+
             Section {
                 Button(lang.t("setup.installAll")) {
                     if !model.claudeHooksInstalled { model.installClaudeHooks() }
@@ -497,6 +499,83 @@ struct PlaceholderSettingsPane: View {
         }
         .frame(maxWidth: .infinity)
         .navigationTitle(lang.t(titleKey))
+    }
+}
+
+// MARK: - Remote Connection
+
+struct RemoteConnectionSection: View {
+    var model: AppModel
+
+    @State private var copiedSSH = false
+
+    private var remoteSessionCount: Int {
+        model.state.sessions.filter(\.isRemote).count
+    }
+
+    private var sshCommand: String {
+        let uid = getuid()
+        return "ssh -R /tmp/open-island-\(uid).sock:/tmp/open-island-\(uid).sock user@host"
+    }
+
+    var body: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Label("SSH Remote", systemImage: "network")
+                    Spacer()
+                    if remoteSessionCount > 0 {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(.green)
+                                .frame(width: 7, height: 7)
+                            Text("\(remoteSessionCount) active")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Text("No remote sessions")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+
+                Text("Connect to Claude Code on remote servers via SSH socket forwarding.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                GroupBox {
+                    HStack {
+                        Text(sshCommand)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer(minLength: 8)
+                        Button {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(sshCommand, forType: .string)
+                            copiedSSH = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                copiedSSH = false
+                            }
+                        } label: {
+                            Image(systemName: copiedSSH ? "checkmark" : "doc.on.doc")
+                                .font(.system(size: 11))
+                                .foregroundStyle(copiedSSH ? .green : .secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+        } header: {
+            HStack(spacing: 4) {
+                Text("Remote")
+                Text("Beta")
+                    .foregroundStyle(.tertiary)
+            }
+        }
     }
 }
 

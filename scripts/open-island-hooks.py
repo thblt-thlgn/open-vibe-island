@@ -255,6 +255,9 @@ def main():
         # Enrich with runtime context
         payload = enrich_payload(payload, env)
 
+        # Mark as remote so the UI can distinguish SSH sessions.
+        payload["remote"] = True
+
         # Build bridge envelope
         if source == "claude":
             command = {"type": "processClaudeHook", "claudeHook": payload}
