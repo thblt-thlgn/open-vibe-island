@@ -33,6 +33,14 @@ This index is the repository map for humans and coding agents. Read these files 
 
 - [docs/session-state-refactor.md](./session-state-refactor.md) for the session state management refactoring plan (process discovery as source of truth)
 
+## Remote / SSH
+
+- [docs/ssh-setup.md](./ssh-setup.md) for connecting Open Island to Claude Code running on remote servers via SSH socket forwarding
+
+## Release
+
+- [docs/release-signing.md](./release-signing.md) for code signing and notarization details
+
 ## Investigations
 
 - [docs/island-position-investigation.md](./island-position-investigation.md) for notch and external-display placement work
