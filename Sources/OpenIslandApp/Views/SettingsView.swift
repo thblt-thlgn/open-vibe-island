@@ -507,20 +507,35 @@ struct PlaceholderSettingsPane: View {
 struct RemoteConnectionSection: View {
     var model: AppModel
 
-    @State private var copiedSSH = false
+    @State private var copiedCommand: String?
 
     private var remoteSessionCount: Int {
         model.state.sessions.filter(\.isRemote).count
     }
 
+    private var socketName: String {
+        "open-island-\(getuid()).sock"
+    }
+
+    private var setupCommand: String {
+        "./scripts/remote-setup.sh user@host"
+    }
+
     private var sshCommand: String {
-        let uid = getuid()
-        return "ssh -R /tmp/open-island-\(uid).sock:/tmp/open-island-\(uid).sock user@host"
+        "ssh -R /tmp/\(socketName):/tmp/\(socketName) user@host"
+    }
+
+    private var sshConfigSnippet: String {
+        """
+        Host myserver
+            RemoteForward /tmp/\(socketName) /tmp/\(socketName)
+        """
     }
 
     var body: some View {
         Section {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
+                // Status
                 HStack {
                     Label("SSH Remote", systemImage: "network")
                     Spacer()
@@ -540,33 +555,44 @@ struct RemoteConnectionSection: View {
                     }
                 }
 
-                Text("Connect to Claude Code on remote servers via SSH socket forwarding.")
+                Text("Monitor Claude Code running on remote servers via SSH.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                GroupBox {
-                    HStack {
-                        Text(sshCommand)
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Spacer(minLength: 8)
-                        Button {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(sshCommand, forType: .string)
-                            copiedSSH = true
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                copiedSSH = false
-                            }
-                        } label: {
-                            Image(systemName: copiedSSH ? "checkmark" : "doc.on.doc")
-                                .font(.system(size: 11))
-                                .foregroundStyle(copiedSSH ? .green : .secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.vertical, 2)
+                // Step 1
+                remoteSetupStep(
+                    number: "1",
+                    title: "Deploy hooks to remote server",
+                    description: "Run from the Open Island repo directory:",
+                    command: setupCommand
+                )
+
+                // Step 2
+                remoteSetupStep(
+                    number: "2",
+                    title: "Connect with socket forwarding",
+                    description: "Add to ~/.ssh/config (recommended):",
+                    command: sshConfigSnippet,
+                    multiline: true
+                )
+
+                // Step 2 alternative
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Or connect directly:")
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.tertiary)
+                    copyableCommand(sshCommand)
+                }
+
+                // Tip
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.blue.opacity(0.8))
+                        .padding(.top, 1)
+                    Text("The remote sshd needs `StreamLocalBindUnlink yes` in /etc/ssh/sshd_config for reliable reconnects.")
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.secondary)
                 }
             }
         } header: {
@@ -575,6 +601,63 @@ struct RemoteConnectionSection: View {
                 Text("Beta")
                     .foregroundStyle(.tertiary)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func remoteSetupStep(
+        number: String,
+        title: String,
+        description: String,
+        command: String,
+        multiline: Bool = false
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(number)
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .frame(width: 16, height: 16)
+                    .background(Circle().fill(.blue.opacity(0.7)))
+                Text(title)
+                    .font(.system(size: 12, weight: .medium))
+            }
+            Text(description)
+                .font(.system(size: 10.5))
+                .foregroundStyle(.secondary)
+            copyableCommand(command, multiline: multiline)
+        }
+    }
+
+    @ViewBuilder
+    private func copyableCommand(_ command: String, multiline: Bool = false) -> some View {
+        let isCopied = copiedCommand == command
+        GroupBox {
+            HStack(alignment: multiline ? .top : .center) {
+                Text(command)
+                    .font(.system(size: 10.5, design: .monospaced))
+                    .foregroundStyle(.primary)
+                    .lineLimit(multiline ? nil : 1)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
+                Spacer(minLength: 8)
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(command, forType: .string)
+                    copiedCommand = command
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        if copiedCommand == command {
+                            copiedCommand = nil
+                        }
+                    }
+                } label: {
+                    Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
+                        .font(.system(size: 10))
+                        .foregroundStyle(isCopied ? .green : .secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.vertical, multiline ? 2 : 0)
         }
     }
 }
