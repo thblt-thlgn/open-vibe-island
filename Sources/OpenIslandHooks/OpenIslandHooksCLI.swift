@@ -8,6 +8,20 @@ struct OpenIslandHooksCLI {
     private enum HookSource: String {
         case codex
         case claude
+        case qoder
+        case factory
+        case droid  // Factory alias used by CodeIsland
+        case codebuddy
+
+        /// Whether this source uses the Claude Code hook format.
+        var isClaudeFormat: Bool {
+            switch self {
+            case .claude, .qoder, .factory, .droid, .codebuddy:
+                return true
+            case .codex:
+                return false
+            }
+        }
     }
 
     static func main() {
@@ -17,7 +31,9 @@ struct OpenIslandHooksCLI {
                 return
             }
 
-            let source = hookSource(arguments: Array(CommandLine.arguments.dropFirst()))
+            let arguments = Array(CommandLine.arguments.dropFirst())
+            let source = hookSource(arguments: arguments)
+            let sourceString = rawSourceString(arguments: arguments)
             let decoder = JSONDecoder()
             let client = BridgeCommandClient(socketURL: BridgeSocketLocation.currentURL())
 
@@ -34,10 +50,11 @@ struct OpenIslandHooksCLI {
                 if let output = try CodexHookOutputEncoder.standardOutput(for: response) {
                     FileHandle.standardOutput.write(output)
                 }
-            case .claude:
-                let payload = try decoder
+            case .claude, .qoder, .factory, .droid, .codebuddy:
+                var payload = try decoder
                     .decode(ClaudeHookPayload.self, from: input)
                     .withRuntimeContext(environment: ProcessInfo.processInfo.environment)
+                payload.hookSource = sourceString
 
                 let timeout = payload.hookEventName == .permissionRequest
                     ? interactiveClaudeHookTimeout
@@ -67,5 +84,18 @@ struct OpenIslandHooksCLI {
         }
 
         return .codex
+    }
+
+    private static func rawSourceString(arguments: [String]) -> String? {
+        var index = 0
+        while index < arguments.count {
+            if arguments[index] == "--source", index + 1 < arguments.count {
+                return arguments[index + 1]
+            }
+
+            index += 1
+        }
+
+        return nil
     }
 }

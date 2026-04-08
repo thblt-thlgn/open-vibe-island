@@ -5,6 +5,9 @@ public enum AgentTool: String, CaseIterable, Codable, Sendable {
     case codex
     case geminiCLI
     case openCode
+    case qoder
+    case factory
+    case codebuddy
 
     public var displayName: String {
         switch self {
@@ -16,6 +19,12 @@ public enum AgentTool: String, CaseIterable, Codable, Sendable {
             "Gemini CLI"
         case .openCode:
             "OpenCode"
+        case .qoder:
+            "Qoder"
+        case .factory:
+            "Factory"
+        case .codebuddy:
+            "CodeBuddy"
         }
     }
 
@@ -29,6 +38,22 @@ public enum AgentTool: String, CaseIterable, Codable, Sendable {
             "GEMINI"
         case .openCode:
             "OPENCODE"
+        case .qoder:
+            "QODER"
+        case .factory:
+            "FACTORY"
+        case .codebuddy:
+            "CODEBUDDY"
+        }
+    }
+
+    /// Whether this agent uses the Claude Code hook format.
+    public var isClaudeCodeFork: Bool {
+        switch self {
+        case .claudeCode, .qoder, .factory, .codebuddy:
+            true
+        default:
+            false
         }
     }
 }
@@ -387,7 +412,7 @@ public extension AgentSession {
     }
 
     var isTrackedLiveSession: Bool {
-        !isDemoSession && (tool == .codex || tool == .claudeCode || tool == .openCode)
+        !isDemoSession && (tool == .codex || tool == .claudeCode || tool == .openCode || tool == .qoder || tool == .factory || tool == .codebuddy)
     }
 
     var isTrackedLiveCodexSession: Bool {

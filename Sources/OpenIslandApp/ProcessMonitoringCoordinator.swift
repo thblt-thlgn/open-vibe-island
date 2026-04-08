@@ -700,6 +700,12 @@ final class ProcessMonitoringCoordinator {
             return "Gemini \(session.id.prefix(8))"
         case .openCode:
             return "OpenCode \(session.id.prefix(8))"
+        case .qoder:
+            return "Qoder \(session.id.prefix(8))"
+        case .factory:
+            return "Factory \(session.id.prefix(8))"
+        case .codebuddy:
+            return "CodeBuddy \(session.id.prefix(8))"
         }
     }
 }

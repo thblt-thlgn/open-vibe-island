@@ -297,6 +297,10 @@ public struct ClaudeHookPayload: Equatable, Codable, Sendable {
     /// Set to `true` by the Python hook client to indicate a remote (SSH) session.
     public var remote: Bool?
 
+    /// The agent tool that produced this hook payload (e.g. "claude", "qoder", "factory", "codebuddy").
+    /// Set by the hooks CLI from the `--source` argument; not part of the JSON wire format.
+    public var hookSource: String?
+
     private enum CodingKeys: String, CodingKey {
         case cwd
         case hookEventName = "hook_event_name"
@@ -771,6 +775,21 @@ public extension ClaudeHookPayload {
         }
 
         return QuestionPrompt(title: title, questions: questions)
+    }
+
+    /// Resolves the `AgentTool` for this payload based on `hookSource`.
+    /// Defaults to `.claudeCode` for unknown or nil sources.
+    var resolvedAgentTool: AgentTool {
+        switch hookSource {
+        case "qoder":
+            return .qoder
+        case "factory", "droid":
+            return .factory
+        case "codebuddy":
+            return .codebuddy
+        default:
+            return .claudeCode
+        }
     }
 
     var permissionRequestTitle: String {
