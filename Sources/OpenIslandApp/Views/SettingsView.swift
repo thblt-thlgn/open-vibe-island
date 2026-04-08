@@ -445,10 +445,10 @@ struct SetupSettingsPane: View {
         model.claudeHooksInstalled && model.codexHooksInstalled && model.openCodePluginInstalled && model.claudeUsageInstalled
     }
 
-    private var hasAnyIssues: Bool {
-        let claudeIssues = model.claudeHealthReport?.issues.count ?? 0
-        let codexIssues = model.codexHealthReport?.issues.count ?? 0
-        return claudeIssues + codexIssues > 0
+    private var hasErrors: Bool {
+        let claudeErrors = model.claudeHealthReport?.errors.count ?? 0
+        let codexErrors = model.codexHealthReport?.errors.count ?? 0
+        return claudeErrors + codexErrors > 0
     }
 
     private var hasRepairableIssues: Bool {
@@ -457,13 +457,19 @@ struct SetupSettingsPane: View {
         return claude || codex
     }
 
+    private var hasNotices: Bool {
+        let claude = model.claudeHealthReport?.notices.isEmpty == false
+        let codex = model.codexHealthReport?.notices.isEmpty == false
+        return claude || codex
+    }
+
     @ViewBuilder
     private var hookDiagnosticsSection: some View {
         Section {
-            if let claudeReport = model.claudeHealthReport, !claudeReport.isHealthy {
+            if let claudeReport = model.claudeHealthReport, !claudeReport.issues.isEmpty {
                 issueList(report: claudeReport)
             }
-            if let codexReport = model.codexHealthReport, !codexReport.isHealthy {
+            if let codexReport = model.codexHealthReport, !codexReport.issues.isEmpty {
                 issueList(report: codexReport)
             }
 
@@ -476,7 +482,7 @@ struct SetupSettingsPane: View {
                         model.runHealthChecks()
                     }
                 }
-            } else if !hasAnyIssues {
+            } else if !hasErrors {
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.green)
@@ -504,7 +510,7 @@ struct SetupSettingsPane: View {
         } header: {
             HStack(spacing: 4) {
                 Text(lang.t("setup.section.diagnostics"))
-                if hasAnyIssues {
+                if hasErrors {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
                         .font(.caption2)
@@ -523,14 +529,14 @@ struct SetupSettingsPane: View {
 
             ForEach(Array(report.issues.enumerated()), id: \.offset) { _, issue in
                 HStack(alignment: .top, spacing: 6) {
-                    Image(systemName: issue.isAutoRepairable ? "wrench.fill" : "exclamationmark.triangle.fill")
+                    Image(systemName: issueIcon(for: issue))
                         .font(.caption2)
-                        .foregroundStyle(issue.isAutoRepairable ? .orange : .red)
+                        .foregroundStyle(issueColor(for: issue))
                         .frame(width: 14)
 
                     Text(issue.description)
                         .font(.caption)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(issue.severity == .info ? .secondary : .primary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -540,6 +546,20 @@ struct SetupSettingsPane: View {
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
+        }
+    }
+
+    private func issueIcon(for issue: HookHealthReport.Issue) -> String {
+        switch issue.severity {
+        case .info: "info.circle.fill"
+        case .error: issue.isAutoRepairable ? "wrench.fill" : "exclamationmark.triangle.fill"
+        }
+    }
+
+    private func issueColor(for issue: HookHealthReport.Issue) -> Color {
+        switch issue.severity {
+        case .info: .blue
+        case .error: issue.isAutoRepairable ? .orange : .red
         }
     }
 

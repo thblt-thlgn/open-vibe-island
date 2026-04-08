@@ -382,7 +382,7 @@ final class HookInstallationCoordinator {
             if updatedClaude.isHealthy && updatedCodex.isHealthy {
                 onStatusMessage?("Hook repair completed successfully.")
             } else {
-                let remaining = updatedClaude.manualIssues.count + updatedCodex.manualIssues.count
+                let remaining = updatedClaude.errors.count + updatedCodex.errors.count
                 onStatusMessage?("Hook repair completed with \(remaining) remaining issue(s) that need manual attention.")
             }
         }

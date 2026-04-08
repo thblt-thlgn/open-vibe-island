@@ -2,6 +2,13 @@ import Foundation
 
 /// Structured diagnostic result for a single hook integration (Claude or Codex).
 public struct HookHealthReport: Equatable, Sendable {
+    public enum Severity: Equatable, Sendable {
+        /// A real problem that may prevent hooks from working.
+        case error
+        /// Informational notice — hooks still work fine.
+        case info
+    }
+
     public enum Issue: Equatable, Sendable, CustomStringConvertible {
         /// The hooks binary is not found at any candidate location.
         case binaryNotFound
@@ -11,10 +18,8 @@ public struct HookHealthReport: Equatable, Sendable {
         case configMalformedJSON(path: String)
         /// The command path recorded in the config doesn't point to an existing binary.
         case staleCommandPath(recorded: String, configPath: String)
-        /// Third-party hooks detected that may conflict (informational).
-        case thirdPartyHooksDetected(names: [String])
-        /// claude-island hooks detected alongside Open Island hooks.
-        case claudeIslandHooksPresent
+        /// Other hooks detected alongside Open Island hooks (informational).
+        case otherHooksDetected(names: [String])
         /// The manifest file is missing even though hooks appear installed.
         case manifestMissing(expectedPath: String)
 
@@ -28,12 +33,19 @@ public struct HookHealthReport: Equatable, Sendable {
                 "Config file is not valid JSON: \(path)"
             case .staleCommandPath(let recorded, let configPath):
                 "Command path in \(configPath) points to missing binary: \(recorded)"
-            case .thirdPartyHooksDetected(let names):
-                "Third-party hooks detected: \(names.joined(separator: ", "))"
-            case .claudeIslandHooksPresent:
-                "claude-island hooks are also present and may cause conflicts."
+            case .otherHooksDetected(let names):
+                "Other hooks coexist: \(names.joined(separator: ", "))"
             case .manifestMissing(let expectedPath):
                 "Installation manifest missing: \(expectedPath)"
+            }
+        }
+
+        public var severity: Severity {
+            switch self {
+            case .otherHooksDetected:
+                .info
+            default:
+                .error
             }
         }
 
@@ -48,19 +60,26 @@ public struct HookHealthReport: Equatable, Sendable {
     }
 
     public var agent: String  // "claude" or "codex"
-    public var isHealthy: Bool { issues.isEmpty }
     public var issues: [Issue]
     public var binaryPath: String?
     public var configPath: String?
 
+    /// True when there are no errors (info-level notices are fine).
+    public var isHealthy: Bool { errors.isEmpty }
+
+    /// Only error-severity issues.
+    public var errors: [Issue] {
+        issues.filter { $0.severity == .error }
+    }
+
+    /// Only info-severity notices.
+    public var notices: [Issue] {
+        issues.filter { $0.severity == .info }
+    }
+
     /// Issues that can be fixed by re-running install.
     public var repairableIssues: [Issue] {
         issues.filter(\.isAutoRepairable)
-    }
-
-    /// Issues that require user intervention.
-    public var manualIssues: [Issue] {
-        issues.filter { !$0.isAutoRepairable }
     }
 
     public init(agent: String, issues: [Issue] = [], binaryPath: String? = nil, configPath: String? = nil) {
@@ -116,15 +135,13 @@ public enum HookHealthCheck {
                         issues.append(.staleCommandPath(recorded: cmd, configPath: settingsPath))
                     }
 
-                    // Check for third-party hooks
-                    let thirdParty = findThirdPartyHookNames(in: data, agent: "claude")
-                    if !thirdParty.isEmpty {
-                        issues.append(.thirdPartyHooksDetected(names: thirdParty))
-                    }
-
-                    // Check for claude-island
+                    // Check for other hooks (informational)
+                    var otherNames = findThirdPartyHookNames(in: data, agent: "claude")
                     if containsClaudeIslandHook(in: data) {
-                        issues.append(.claudeIslandHooksPresent)
+                        otherNames.append("claude-island")
+                    }
+                    if !otherNames.isEmpty {
+                        issues.append(.otherHooksDetected(names: otherNames.sorted()))
                     }
                 }
             }
@@ -185,9 +202,9 @@ public enum HookHealthCheck {
                         issues.append(.staleCommandPath(recorded: cmd, configPath: hooksPath))
                     }
 
-                    let thirdParty = findThirdPartyHookNames(in: data, agent: "codex")
-                    if !thirdParty.isEmpty {
-                        issues.append(.thirdPartyHooksDetected(names: thirdParty))
+                    let otherNames = findThirdPartyHookNames(in: data, agent: "codex")
+                    if !otherNames.isEmpty {
+                        issues.append(.otherHooksDetected(names: otherNames.sorted()))
                     }
                 }
             }
