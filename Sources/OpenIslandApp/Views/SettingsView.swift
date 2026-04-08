@@ -473,6 +473,8 @@ struct SetupSettingsPane: View {
                 }
             }
 
+            hookDiagnosticsSection
+
             RemoteConnectionSection(model: model)
 
             Section {
@@ -497,6 +499,124 @@ struct SetupSettingsPane: View {
         model.claudeHooksInstalled && model.codexHooksInstalled && model.openCodePluginInstalled
             && model.qoderHooksInstalled && model.factoryHooksInstalled && model.codebuddyHooksInstalled
             && model.claudeUsageInstalled
+    }
+
+    private var hasErrors: Bool {
+        let claudeErrors = model.claudeHealthReport?.errors.count ?? 0
+        let codexErrors = model.codexHealthReport?.errors.count ?? 0
+        return claudeErrors + codexErrors > 0
+    }
+
+    private var hasRepairableIssues: Bool {
+        let claude = model.claudeHealthReport?.repairableIssues.isEmpty == false
+        let codex = model.codexHealthReport?.repairableIssues.isEmpty == false
+        return claude || codex
+    }
+
+    private var hasNotices: Bool {
+        let claude = model.claudeHealthReport?.notices.isEmpty == false
+        let codex = model.codexHealthReport?.notices.isEmpty == false
+        return claude || codex
+    }
+
+    @ViewBuilder
+    private var hookDiagnosticsSection: some View {
+        Section {
+            if let claudeReport = model.claudeHealthReport, !claudeReport.issues.isEmpty {
+                issueList(report: claudeReport)
+            }
+            if let codexReport = model.codexHealthReport, !codexReport.issues.isEmpty {
+                issueList(report: codexReport)
+            }
+
+            if model.claudeHealthReport == nil && model.codexHealthReport == nil {
+                HStack {
+                    Text(lang.t("setup.diagnostics.notRun"))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button(lang.t("setup.diagnostics.runCheck")) {
+                        model.runHealthChecks()
+                    }
+                }
+            } else if !hasErrors {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text(lang.t("setup.diagnostics.allHealthy"))
+                    Spacer()
+                    Button(lang.t("setup.diagnostics.recheck")) {
+                        model.runHealthChecks()
+                    }
+                    .font(.caption)
+                }
+            } else {
+                HStack(spacing: 10) {
+                    Button(lang.t("setup.diagnostics.recheck")) {
+                        model.runHealthChecks()
+                    }
+
+                    if hasRepairableIssues {
+                        Button(lang.t("setup.diagnostics.repair")) {
+                            model.repairHooks()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                }
+            }
+        } header: {
+            HStack(spacing: 4) {
+                Text(lang.t("setup.section.diagnostics"))
+                if hasErrors {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.caption2)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func issueList(report: HookHealthReport) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(report.agent == "claude" ? "Claude Code" : "Codex")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+
+            ForEach(Array(report.issues.enumerated()), id: \.offset) { _, issue in
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: issueIcon(for: issue))
+                        .font(.caption2)
+                        .foregroundStyle(issueColor(for: issue))
+                        .frame(width: 14)
+
+                    Text(issue.description)
+                        .font(.caption)
+                        .foregroundStyle(issue.severity == .info ? .secondary : .primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            if let binaryPath = report.binaryPath {
+                Text("Binary: \(binaryPath)")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    private func issueIcon(for issue: HookHealthReport.Issue) -> String {
+        switch issue.severity {
+        case .info: "info.circle.fill"
+        case .error: issue.isAutoRepairable ? "wrench.fill" : "exclamationmark.triangle.fill"
+        }
+    }
+
+    private func issueColor(for issue: HookHealthReport.Issue) -> Color {
+        switch issue.severity {
+        case .info: .blue
+        case .error: issue.isAutoRepairable ? .orange : .red
+        }
     }
 
     @ViewBuilder

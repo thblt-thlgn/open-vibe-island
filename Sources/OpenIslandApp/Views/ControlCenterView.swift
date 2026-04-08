@@ -65,22 +65,45 @@ struct ControlCenterView: View {
                             metadataRow(title: "notice", value: "claude-island hooks still present")
                         }
                     }
+                    if let report = model.claudeHealthReport, !report.issues.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(Array(report.issues.enumerated()), id: \.offset) { _, issue in
+                                HStack(alignment: .top, spacing: 4) {
+                                    Image(systemName: controlCenterIssueIcon(issue))
+                                        .font(.system(size: 8))
+                                        .foregroundStyle(controlCenterIssueColor(issue))
+                                    Text(issue.description)
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundStyle(.white.opacity(issue.severity == .info ? 0.4 : 0.6))
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                        }
+                    }
                 } actions: {
                     HStack(spacing: 10) {
                         Button(lang.t("debug.refresh")) {
                             model.refreshClaudeHookStatus()
+                            model.runHealthChecks()
                         }
                         .buttonStyle(DebugActionButtonStyle(kind: .secondary))
 
-                        Button(model.claudeHooksInstalled ? lang.t("debug.removeHooks") : lang.t("debug.installHooks")) {
-                            if model.claudeHooksInstalled {
-                                model.uninstallClaudeHooks()
-                            } else {
-                                model.installClaudeHooks()
+                        if let report = model.claudeHealthReport, !report.repairableIssues.isEmpty {
+                            Button("Repair") {
+                                model.repairHooks()
                             }
+                            .buttonStyle(DebugActionButtonStyle(kind: .primary))
+                        } else {
+                            Button(model.claudeHooksInstalled ? lang.t("debug.removeHooks") : lang.t("debug.installHooks")) {
+                                if model.claudeHooksInstalled {
+                                    model.uninstallClaudeHooks()
+                                } else {
+                                    model.installClaudeHooks()
+                                }
+                            }
+                            .buttonStyle(DebugActionButtonStyle(kind: .primary))
+                            .disabled(model.isClaudeHookSetupBusy || model.hooksBinaryURL == nil)
                         }
-                        .buttonStyle(DebugActionButtonStyle(kind: .primary))
-                        .disabled(model.isClaudeHookSetupBusy || model.hooksBinaryURL == nil)
                     }
                 }
 
@@ -504,6 +527,20 @@ struct ControlCenterView: View {
                 .foregroundStyle(.white.opacity(0.72))
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func controlCenterIssueIcon(_ issue: HookHealthReport.Issue) -> String {
+        switch issue.severity {
+        case .info: "info.circle.fill"
+        case .error: issue.isAutoRepairable ? "wrench.fill" : "exclamationmark.triangle.fill"
+        }
+    }
+
+    private func controlCenterIssueColor(_ issue: HookHealthReport.Issue) -> Color {
+        switch issue.severity {
+        case .info: .blue
+        case .error: issue.isAutoRepairable ? .orange : .red
         }
     }
 }
