@@ -1205,14 +1205,9 @@ private struct IslandSessionRow: View {
                     .buttonStyle(IslandWideButtonStyle(kind: .warning))
 
                 let updates = session.permissionRequest?.suggestedUpdates ?? []
-                if updates.isEmpty {
-                    Button("Always Allow") { onApprove?(.allowWithUpdates([])) }
+                ForEach(Array(updates.enumerated()), id: \.offset) { _, update in
+                    Button(update.displayLabel) { onApprove?(.allowWithUpdates([update])) }
                         .buttonStyle(IslandWideButtonStyle(kind: .danger))
-                } else {
-                    ForEach(Array(updates.enumerated()), id: \.offset) { _, update in
-                        Button(update.displayLabel) { onApprove?(.allowWithUpdates([update])) }
-                            .buttonStyle(IslandWideButtonStyle(kind: .danger))
-                    }
                 }
             }
         }
