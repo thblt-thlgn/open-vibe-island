@@ -1198,21 +1198,24 @@ private struct IslandSessionRow: View {
                     .strokeBorder(.orange.opacity(0.18))
             )
 
-            let updates = session.permissionRequest?.suggestedUpdates ?? []
-
             HStack(spacing: 8) {
                 Button("No") { onApprove?(.deny) }
                     .buttonStyle(IslandWideButtonStyle(kind: .secondary))
                 Button("Yes") { onApprove?(.allowOnce) }
                     .buttonStyle(IslandWideButtonStyle(kind: .warning))
-                ForEach(Array(updates.enumerated()), id: \.offset) { _, update in
-                    Button(update.displayLabel) { onApprove?(.allowWithUpdates([update])) }
-                        .buttonStyle(IslandWideButtonStyle(kind: .danger))
+                if let toolName = session.permissionRequest?.toolName {
+                    Button("Always Allow (\(toolName))") {
+                        let rule = ClaudePermissionRuleValue(toolName: toolName)
+                        let update = ClaudePermissionUpdate.addRules(
+                            destination: .session,
+                            rules: [rule],
+                            behavior: .allow
+                        )
+                        onApprove?(.allowWithUpdates([update]))
+                    }
+                    .buttonStyle(IslandWideButtonStyle(kind: .danger))
                 }
             }
-
-            Button("Tell Claude what to change") { onJump() }
-                .buttonStyle(IslandWideButtonStyle(kind: .primary))
         }
     }
 
