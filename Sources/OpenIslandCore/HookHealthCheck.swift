@@ -16,9 +16,11 @@ public struct HookHealthReport: Equatable, Sendable {
         case binaryNotExecutable(path: String)
         /// The config file (settings.json / hooks.json) contains invalid JSON.
         case configMalformedJSON(path: String)
-        /// The command path recorded in the config doesn't point to an existing binary.
+        /// An Open Island command path in the config doesn't point to an existing binary.
         case staleCommandPath(recorded: String, configPath: String)
-        /// Other hooks detected alongside Open Island hooks (informational).
+        /// A third-party hook command points to a missing file — will cause errors on every invocation.
+        case brokenThirdPartyHook(command: String)
+        /// Other hooks detected alongside Open Island hooks (informational, working fine).
         case otherHooksDetected(names: [String])
         /// The manifest file is missing even though hooks appear installed.
         case manifestMissing(expectedPath: String)
@@ -33,6 +35,8 @@ public struct HookHealthReport: Equatable, Sendable {
                 "Config file is not valid JSON: \(path)"
             case .staleCommandPath(let recorded, let configPath):
                 "Command path in \(configPath) points to missing binary: \(recorded)"
+            case .brokenThirdPartyHook(let command):
+                "Third-party hook points to missing file: \(command)"
             case .otherHooksDetected(let names):
                 "Other hooks coexist: \(names.joined(separator: ", "))"
             case .manifestMissing(let expectedPath):
@@ -126,16 +130,16 @@ public enum HookHealthCheck {
                 if (try? JSONSerialization.jsonObject(with: data)) == nil {
                     issues.append(.configMalformedJSON(path: settingsPath))
                 } else {
-                    // Check command paths in hooks
-                    let staleCommands = findStaleCommandPaths(
-                        in: data,
-                        fileManager: fileManager
-                    )
-                    for cmd in staleCommands {
+                    // Check all hook command paths
+                    let (staleOI, brokenTP) = findBrokenHookCommands(in: data, fileManager: fileManager)
+                    for cmd in staleOI {
                         issues.append(.staleCommandPath(recorded: cmd, configPath: settingsPath))
                     }
+                    for cmd in brokenTP {
+                        issues.append(.brokenThirdPartyHook(command: cmd))
+                    }
 
-                    // Check for other hooks (informational)
+                    // Check for other hooks (informational — only working ones)
                     var otherNames = findThirdPartyHookNames(in: data, agent: "claude")
                     if containsClaudeIslandHook(in: data) {
                         otherNames.append("claude-island")
@@ -197,9 +201,12 @@ public enum HookHealthCheck {
                 if (try? JSONSerialization.jsonObject(with: data)) == nil {
                     issues.append(.configMalformedJSON(path: hooksPath))
                 } else {
-                    let staleCommands = findStaleCommandPaths(in: data, fileManager: fileManager)
-                    for cmd in staleCommands {
+                    let (staleOI, brokenTP) = findBrokenHookCommands(in: data, fileManager: fileManager)
+                    for cmd in staleOI {
                         issues.append(.staleCommandPath(recorded: cmd, configPath: hooksPath))
+                    }
+                    for cmd in brokenTP {
+                        issues.append(.brokenThirdPartyHook(command: cmd))
                     }
 
                     let otherNames = findThirdPartyHookNames(in: data, agent: "codex")
@@ -252,18 +259,20 @@ public enum HookHealthCheck {
         return nil
     }
 
-    /// Extracts command paths from hooks JSON and checks if they point to existing files.
-    private static func findStaleCommandPaths(
+    /// Checks all hook commands for broken paths. Returns separate lists for
+    /// Open Island commands (auto-repairable) and third-party commands (user must fix).
+    private static func findBrokenHookCommands(
         in data: Data,
         fileManager: FileManager
-    ) -> [String] {
+    ) -> (staleOpenIsland: [String], brokenThirdParty: [String]) {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let hooks = root["hooks"] as? [String: Any] else {
-            return []
+            return ([], [])
         }
 
-        var staleCommands: [String] = []
-        var seenCommands: Set<String> = []
+        var staleOpenIsland: [String] = []
+        var brokenThirdParty: [String] = []
+        var seenPaths: Set<String> = []
 
         for (_, eventValue) in hooks {
             guard let groups = eventValue as? [[String: Any]] else { continue }
@@ -272,26 +281,29 @@ public enum HookHealthCheck {
                 for hook in hookEntries {
                     guard let command = hook["command"] as? String else { continue }
 
-                    // Only check Open Island / Vibe Island commands
-                    let normalized = command.lowercased()
-                    guard normalized.contains("openislandhooks") || normalized.contains("vibeislandhooks")
-                        || normalized.contains("open-island") || normalized.contains("vibe-island") else {
-                        continue
-                    }
-
-                    // Extract the actual binary path from the shell-quoted command
                     let binaryPath = extractBinaryPath(from: command)
-                    guard !seenCommands.contains(binaryPath) else { continue }
-                    seenCommands.insert(binaryPath)
+                    guard !seenPaths.contains(binaryPath) else { continue }
+                    seenPaths.insert(binaryPath)
 
-                    if !fileManager.fileExists(atPath: binaryPath) {
-                        staleCommands.append(binaryPath)
+                    // Skip commands that don't look like absolute paths (e.g. bare "node" or "python3")
+                    // Also expand ~ to home directory
+                    let expandedPath = (binaryPath as NSString).expandingTildeInPath
+                    guard expandedPath.hasPrefix("/") else { continue }
+
+                    guard !fileManager.fileExists(atPath: expandedPath) else { continue }
+
+                    let normalized = command.lowercased()
+                    if normalized.contains("openislandhooks") || normalized.contains("vibeislandhooks")
+                        || normalized.contains("open-island") || normalized.contains("vibe-island") {
+                        staleOpenIsland.append(binaryPath)
+                    } else {
+                        brokenThirdParty.append(binaryPath)
                     }
                 }
             }
         }
 
-        return staleCommands
+        return (staleOpenIsland, brokenThirdParty)
     }
 
     /// Finds third-party (non-Open Island) hook command names for display.
