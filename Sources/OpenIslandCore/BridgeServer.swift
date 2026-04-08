@@ -606,6 +606,9 @@ public final class BridgeServer: @unchecked Sendable {
                     kind: .question(payload, prompt)
                 )
             } else {
+                let suggestions = payload.permissionSuggestions ?? []
+                print("[BridgeServer] permission_suggestions for \(payload.toolName ?? "unknown"): \(suggestions.isEmpty ? "EMPTY" : suggestions.map(\.displayLabel).joined(separator: ", "))")
+
                 emit(
                     .permissionRequested(
                         PermissionRequested(
@@ -618,7 +621,7 @@ public final class BridgeServer: @unchecked Sendable {
                                 secondaryActionTitle: "Deny",
                                 toolName: payload.toolName,
                                 toolUseID: claudeToolUseID(for: payload),
-                                suggestedUpdates: payload.permissionSuggestions ?? []
+                                suggestedUpdates: suggestions
                             ),
                             timestamp: .now
                         )
