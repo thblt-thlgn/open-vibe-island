@@ -323,6 +323,7 @@ struct SetupSettingsPane: View {
     @State private var confirmingUninstallClaude = false
     @State private var confirmingUninstallCodex = false
     @State private var confirmingUninstallOpenCode = false
+    @State private var confirmingUninstallCursor = false
 
     private var lang: LanguageManager { model.lang }
 
@@ -377,6 +378,23 @@ struct SetupSettingsPane: View {
                 } message: {
                     Text("This will remove the Open Island plugin from ~/.config/opencode/plugins/.")
                 }
+
+                hookRow(
+                    name: "Cursor",
+                    installed: model.cursorHooksInstalled,
+                    busy: model.isCursorHookSetupBusy,
+                    requiresBinary: true,
+                    installAction: { model.installCursorHooks() },
+                    uninstallAction: { confirmingUninstallCursor = true }
+                )
+                .alert(lang.t("settings.general.uninstallConfirmTitle"), isPresented: $confirmingUninstallCursor) {
+                    Button(lang.t("settings.general.uninstallConfirmAction"), role: .destructive) {
+                        model.uninstallCursorHooks()
+                    }
+                    Button(lang.t("settings.general.cancel"), role: .cancel) {}
+                } message: {
+                    Text("This will remove the Open Island hooks from ~/.cursor/hooks.json.")
+                }
             }
 
             Section {
@@ -429,6 +447,7 @@ struct SetupSettingsPane: View {
                     if !model.claudeHooksInstalled { model.installClaudeHooks() }
                     if !model.codexHooksInstalled { model.installCodexHooks() }
                     if !model.openCodePluginInstalled { model.installOpenCodePlugin() }
+                    if !model.cursorHooksInstalled { model.installCursorHooks() }
                     if !model.claudeUsageInstalled { model.installClaudeUsageBridge() }
                 }
                 .disabled(model.hooksBinaryURL == nil || allReady)
@@ -440,7 +459,7 @@ struct SetupSettingsPane: View {
     }
 
     private var allReady: Bool {
-        model.claudeHooksInstalled && model.codexHooksInstalled && model.openCodePluginInstalled && model.claudeUsageInstalled
+        model.claudeHooksInstalled && model.codexHooksInstalled && model.openCodePluginInstalled && model.cursorHooksInstalled && model.claudeUsageInstalled
     }
 
     @ViewBuilder
