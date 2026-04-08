@@ -21,6 +21,7 @@ struct ContentView: View {
             Image(systemName: "applewatch.radiowaves.left.and.right")
                 .font(.system(size: 40))
                 .foregroundStyle(.blue)
+                .symbolEffect(.pulse, isActive: !sessionManager.isPhoneReachable)
 
             Text("一切就绪")
                 .font(.headline)
@@ -34,6 +35,17 @@ struct ContentView: View {
     private var eventList: some View {
         List(sessionManager.pendingEvents.sorted(by: { $0.receivedAt > $1.receivedAt })) { event in
             EventCardView(event: event)
+        }
+        .safeAreaInset(edge: .bottom) {
+            if let error = sessionManager.lastError {
+                Text(error)
+                    .font(.caption2)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.red.opacity(0.85), in: RoundedRectangle(cornerRadius: 6))
+                    .padding(.bottom, 4)
+            }
         }
     }
 }

@@ -286,6 +286,50 @@ final class ConnectionManager: ObservableObject {
         }
     }
 
+    // MARK: - Manual Pairing (fallback when Bonjour unavailable)
+
+    func pairManual(host: String, port: UInt16, code: String) async throws {
+        guard let url = URL(string: "http://\(host):\(port)") else {
+            throw PairingError.resolutionFailed
+        }
+        self.resolvedURL = url
+
+        var request = URLRequest(url: url.appendingPathComponent("pair"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body = WatchPairRequest(code: code)
+        request.httpBody = try JSONEncoder().encode(body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw PairingError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200:
+            let pairResponse = try JSONDecoder().decode(WatchPairResponse.self, from: data)
+            savedToken = pairResponse.token
+            savedMacName = host
+            pairedAt = Date()
+            connectedMacName = host
+            state = .paired
+            showPairing = false
+            Self.logger.info("Paired manually with \(host):\(port)")
+            connectSSE()
+
+        case 403:
+            throw PairingError.invalidCode
+
+        case 410:
+            throw PairingError.codeExpired
+
+        default:
+            throw PairingError.serverError(httpResponse.statusCode)
+        }
+    }
+
     // MARK: - SSE Connection
 
     private func connectSSE() {

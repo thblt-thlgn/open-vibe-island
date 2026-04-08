@@ -7,6 +7,12 @@ struct PairingView: View {
     @State private var pairingCode = ""
     @State private var isPairing = false
     @State private var errorMessage: String?
+    @State private var showManualEntry = false
+    @State private var manualHost = ""
+    @State private var manualPort = "7890"
+    @State private var manualCode = ""
+    @State private var manualError: String?
+    @State private var isManualPairing = false
 
     var body: some View {
         NavigationStack {
@@ -100,6 +106,104 @@ struct PairingView: View {
                     .frame(maxWidth: .infinity)
                 }
             }
+
+            Section {
+                Button {
+                    showManualEntry = true
+                } label: {
+                    HStack {
+                        Image(systemName: "keyboard")
+                            .foregroundStyle(.orange)
+                            .frame(width: 32)
+                        Text("手动输入 IP 地址")
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showManualEntry) {
+            manualEntrySheet
+        }
+    }
+
+    // MARK: - Manual Entry Sheet
+
+    private var manualEntrySheet: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("IP 地址", text: $manualHost)
+                        .keyboardType(.decimalPad)
+                    TextField("端口", text: $manualPort)
+                        .keyboardType(.numberPad)
+                    TextField("4 位配对码", text: $manualCode)
+                        .keyboardType(.numberPad)
+                        .onChange(of: manualCode) { _, newValue in
+                            let filtered = String(newValue.filter(\.isNumber).prefix(4))
+                            if filtered != newValue {
+                                manualCode = filtered
+                            }
+                        }
+                } footer: {
+                    Text("Bonjour 无法发现时（如热点、AP 隔离），可手动输入 Mac 的 IP 和端口。")
+                }
+
+                if let manualError {
+                    Section {
+                        Text(manualError)
+                            .foregroundStyle(.red)
+                            .font(.subheadline)
+                    }
+                }
+
+                Section {
+                    Button {
+                        performManualPairing()
+                    } label: {
+                        if isManualPairing {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                Spacer()
+                            }
+                        } else {
+                            Text("连接并配对")
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                    .disabled(manualHost.isEmpty || manualCode.count != 4 || isManualPairing)
+                }
+            }
+            .navigationTitle("手动连接")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") {
+                        showManualEntry = false
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Manual Pairing
+
+    private func performManualPairing() {
+        guard let port = UInt16(manualPort) else {
+            manualError = "端口格式无效"
+            return
+        }
+        isManualPairing = true
+        manualError = nil
+
+        Task {
+            do {
+                try await connectionManager.pairManual(host: manualHost, port: port, code: manualCode)
+                showManualEntry = false
+            } catch {
+                manualError = error.localizedDescription
+                manualCode = ""
+            }
+            isManualPairing = false
         }
     }
 

@@ -54,6 +54,10 @@ struct EventCardView: View {
                 }
                 .buttonStyle(.bordered)
             }
+
+            Text(event.receivedAt, style: .relative)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
         }
     }
 
@@ -74,6 +78,10 @@ struct EventCardView: View {
                 }
                 .buttonStyle(.bordered)
             }
+
+            Text(event.receivedAt, style: .relative)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
         }
     }
 
@@ -89,6 +97,10 @@ struct EventCardView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(3)
+
+            Text(event.receivedAt, style: .relative)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
         }
     }
 }

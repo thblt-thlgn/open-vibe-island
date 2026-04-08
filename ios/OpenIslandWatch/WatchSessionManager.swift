@@ -17,6 +17,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
 
     @Published var pendingEvents: [PendingWatchEvent] = []
     @Published var isPhoneReachable: Bool = false
+    @Published var lastError: String?
 
     private let logger = Logger(subsystem: "app.openisland.watch", category: "WatchSession")
     private var replyHandlers: [String: ([String: Any]) -> Void] = [:]
@@ -36,6 +37,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         let response = WatchResponse.resolution(requestID: requestID, action: action)
         guard let data = try? JSONEncoder().encode(response) else {
             logger.error("Failed to encode WatchResponse for \(requestID)")
+            lastError = "编码响应失败"
             return
         }
         let payload: [String: Any] = ["payload": data]
@@ -43,13 +45,19 @@ final class WatchSessionManager: NSObject, ObservableObject {
         if let replyHandler = replyHandlers.removeValue(forKey: requestID) {
             replyHandler(payload)
             logger.info("Resolved \(requestID) via replyHandler")
+            lastError = nil
         } else if WCSession.default.isReachable {
             WCSession.default.sendMessage(payload, replyHandler: nil) { [weak self] error in
                 self?.logger.error("Failed to send resolution for \(requestID): \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self?.lastError = "发送失败: \(error.localizedDescription)"
+                }
             }
             logger.info("Resolved \(requestID) via sendMessage fallback")
+            lastError = nil
         } else {
             logger.warning("Cannot resolve \(requestID): phone not reachable and no replyHandler")
+            lastError = "iPhone 不可达，请检查连接"
         }
 
         pendingEvents.removeAll { $0.id == requestID }
@@ -88,6 +96,13 @@ final class WatchSessionManager: NSObject, ObservableObject {
         let event = PendingWatchEvent(id: requestID, message: message, receivedAt: Date())
         DispatchQueue.main.async {
             self.pendingEvents.append(event)
+        }
+
+        // Auto-expire sessionCompleted events after 30 seconds
+        if case .sessionCompleted = message {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in
+                self?.pendingEvents.removeAll { $0.id == requestID }
+            }
         }
 
         HapticManager.play(for: message)
