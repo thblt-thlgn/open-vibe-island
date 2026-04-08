@@ -422,9 +422,9 @@ struct SetupSettingsPane: View {
                 }
             }
 
-            RemoteConnectionSection(model: model)
-
             hookDiagnosticsSection
+
+            RemoteConnectionSection(model: model)
 
             Section {
                 Button(lang.t("setup.installAll")) {
