@@ -7,6 +7,7 @@ struct TerminalJumpService {
     typealias AppRunningChecker = @Sendable (String) -> Bool
     typealias OpenAction = @Sendable ([String]) throws -> Void
     typealias AppleScriptRunner = @Sendable (String) throws -> String
+    typealias ProcessRunner = @Sendable (String, [String]) -> Bool
 
     private struct TerminalAppDescriptor {
         let displayName: String
@@ -69,6 +70,7 @@ struct TerminalJumpService {
     private let appRunningChecker: AppRunningChecker
     private let openAction: OpenAction
     private let appleScriptRunner: AppleScriptRunner
+    private let processRunner: ProcessRunner
 
     init(
         applicationResolver: @escaping ApplicationResolver = { bundleIdentifier in
@@ -78,12 +80,14 @@ struct TerminalJumpService {
             NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier).isEmpty == false
         },
         openAction: @escaping OpenAction = Self.defaultOpenAction(arguments:),
-        appleScriptRunner: @escaping AppleScriptRunner = Self.defaultAppleScriptRunner(script:)
+        appleScriptRunner: @escaping AppleScriptRunner = Self.defaultAppleScriptRunner(script:),
+        processRunner: @escaping ProcessRunner = Self.defaultProcessRunner(executable:arguments:)
     ) {
         self.applicationResolver = applicationResolver
         self.appRunningChecker = appRunningChecker
         self.openAction = openAction
         self.appleScriptRunner = appleScriptRunner
+        self.processRunner = processRunner
     }
 
     func jump(to target: JumpTarget) throws -> String {
@@ -139,9 +143,11 @@ struct TerminalJumpService {
                     try openAction(["-b", descriptor.bundleIdentifier])
                     return "Activated Cursor."
                 }
-                if let workingDirectory = target.workingDirectory,
-                   jumpToCursorWorkspace(workingDirectory) {
-                    return "Focused the matching Cursor workspace."
+                if let workingDirectory = target.workingDirectory {
+                    let opened = jumpToCursorWorkspace(workingDirectory)
+                    return opened
+                        ? "Focused the matching Cursor workspace."
+                        : "Focused the matching Cursor workspace. The cursor CLI may not be available."
                 }
             default:
                 break
@@ -203,19 +209,7 @@ struct TerminalJumpService {
     }
 
     private func jumpToCursorWorkspace(_ workspacePath: String) -> Bool {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["cursor", "-r", workspacePath]
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-
-        do {
-            try process.run()
-            process.waitUntilExit()
-            return process.terminationStatus == 0
-        } catch {
-            return false
-        }
+        processRunner("cursor", ["-r", workspacePath])
     }
 
     private func jumpToCmuxTerminal(_ target: JumpTarget) -> Bool {
@@ -784,6 +778,22 @@ struct TerminalJumpService {
         }
 
         return output
+    }
+
+    private static func defaultProcessRunner(executable: String, arguments: [String]) -> Bool {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = [executable] + arguments
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+            return process.terminationStatus == 0
+        } catch {
+            return false
+        }
     }
 
     private func escapeAppleScript(_ value: String?) -> String {
