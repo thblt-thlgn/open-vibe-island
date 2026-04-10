@@ -52,7 +52,7 @@ Open Island 驻留在 Mac 的**刘海区域**（或顶部栏），为你的 AI c
 
 **8 个 Agents**：Claude Code、Codex、Cursor、OpenCode、Qoder、Qwen Code、Factory、CodeBuddy
 
-**14+ 终端和 IDE**：Terminal.app、Ghostty、iTerm2、WezTerm、Zellij、cmux、Kaku、VS Code、Cursor、Windsurf、Trae、JetBrains 全家桶（IDEA、WebStorm、PyCharm、GoLand、CLion、RubyMine、PhpStorm、Rider、RustRover）
+**15+ 终端和 IDE**：Terminal.app、Ghostty、iTerm2、WezTerm、Zellij、tmux、cmux、Kaku、VS Code、Cursor、Windsurf、Trae、JetBrains 全家桶（IDEA、WebStorm、PyCharm、GoLand、CLion、RubyMine、PhpStorm、Rider、RustRover）
 
 <details>
 <summary>完整兼容列表</summary>
@@ -81,6 +81,7 @@ Open Island 驻留在 Mac 的**刘海区域**（或顶部栏），为你的 AI c
 | **Kaku** | 完整 | Jump-back，CLI pane 定位 |
 | **WezTerm** | 完整 | Jump-back，CLI pane 定位 |
 | **iTerm2** | 完整 | Jump-back，session ID / TTY 匹配 |
+| **tmux**（终端复用器） | 完整 | Jump-back，session/window/pane 定位 |
 | **Zellij** | 完整 | Jump-back，CLI pane/tab 定位 |
 | **VS Code** | 工作区 | 通过 `code` CLI 激活工作区 |
 | **Cursor** | 工作区 | 通过 `cursor` CLI 激活工作区 |

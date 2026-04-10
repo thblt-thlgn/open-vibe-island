@@ -56,8 +56,8 @@ See [docs/worktree-workflow.md](/Users/wangruobing/Personal/open-island/docs/wor
 
 ## Reproduction Scope
 
-- Reproduction work is currently limited to these four surfaces only: `Claude Code`, `Codex`, `Terminal.app`, and `Ghostty`.
-- Treat those four surfaces as the only supported product boundary for now.
+- Reproduction work is currently limited to these surfaces only: `Claude Code`, `Codex`, `Terminal.app`, `Ghostty`, and `tmux` (multiplexer).
+- Treat those surfaces as the only supported product boundary for now.
 - Do not count partial or experimental code paths for other terminals or agents as supported scope.
 - Do not broaden the reproduction scope to other tools, runtimes, platforms, or environments unless the user explicitly asks to expand it.
 
