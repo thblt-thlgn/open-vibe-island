@@ -947,6 +947,7 @@ final class AppModel {
                 case let .sessionMetadataUpdated(p): return p.sessionID
                 case let .claudeSessionMetadataUpdated(p): return p.sessionID
                 case let .openCodeSessionMetadataUpdated(p): return p.sessionID
+                case let .cursorSessionMetadataUpdated(p): return p.sessionID
                 case let .actionableStateResolved(p): return p.sessionID
                 }
             }()
