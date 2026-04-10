@@ -6,6 +6,15 @@ public enum GeminiHookEventName: String, Codable, Sendable {
     case preToolUse = "PreToolUse"
     case postToolUse = "PostToolUse"
     case stop = "Stop"
+    case userPromptSubmit = "UserPromptSubmit"
+}
+
+public struct GeminiHookToolInput: Equatable, Codable, Sendable {
+    public var command: String
+
+    public init(command: String) {
+        self.command = command
+    }
 }
 
 public struct GeminiHookPayload: Equatable, Codable, Sendable {
@@ -14,7 +23,7 @@ public struct GeminiHookPayload: Equatable, Codable, Sendable {
     public var cwd: String
     public var model: String
     public var toolName: String?
-    public var toolInput: [String: String]?
+    public var toolInput: GeminiHookToolInput?
     public var lastAssistantMessage: String?
 
     private enum CodingKeys: String, CodingKey {
@@ -33,7 +42,7 @@ public struct GeminiHookPayload: Equatable, Codable, Sendable {
         cwd: String,
         model: String,
         toolName: String? = nil,
-        toolInput: [String: String]? = nil,
+        toolInput: GeminiHookToolInput? = nil,
         lastAssistantMessage: String? = nil
     ) {
         self.sessionID = sessionID
@@ -66,6 +75,8 @@ public extension GeminiHookPayload {
             return "Gemini CLI finished a tool call in \(workspaceName)."
         case .stop:
             return "Gemini CLI completed a turn in \(workspaceName)."
+        case .userPromptSubmit:
+            return "Gemini CLI received a new prompt in \(workspaceName)."
         }
     }
 }
