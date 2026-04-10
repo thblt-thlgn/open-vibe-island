@@ -14,12 +14,13 @@ struct OpenIslandHooksCLI {
         case droid
         case codebuddy
         case cursor
+        case gemini
 
         var isClaudeFormat: Bool {
             switch self {
             case .claude, .qoder, .qwen, .factory, .droid, .codebuddy:
                 return true
-            case .codex, .cursor:
+            case .codex, .cursor, .gemini:
                 return false
             }
         }
@@ -86,6 +87,15 @@ struct OpenIslandHooksCLI {
                     let output = try encoder.encode(directive)
                     FileHandle.standardOutput.write(output)
                     FileHandle.standardOutput.write(Data("\n".utf8))
+                }
+            case .gemini:
+                let payload = try decoder.decode(GeminiHookPayload.self, from: input)
+                guard let response = try? client.send(.processGeminiHook(payload)) else {
+                    logStderr("bridge unavailable for gemini hook (\(payload.hookEventName.rawValue))")
+                    return
+                }
+                if let output = GeminiHookOutputEncoder.standardOutput(for: response) {
+                    FileHandle.standardOutput.write(output)
                 }
             }
         } catch {
