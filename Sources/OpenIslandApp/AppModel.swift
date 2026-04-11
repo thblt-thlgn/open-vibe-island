@@ -12,6 +12,7 @@ final class AppModel {
     private static let hapticFeedbackEnabledDefaultsKey = "app.hapticFeedbackEnabled"
     private static let islandAppearanceModeDefaultsKey = "appearance.island.mode"
     private static let islandClosedDisplayStyleDefaultsKey = "appearance.island.closedDisplayStyle"
+    private static let islandHideIdleToEdgeDefaultsKey = "appearance.island.hideIdleToEdge"
     private static let islandPixelShapeStyleDefaultsKey = "appearance.island.pixelShapeStyle"
     private static let islandStatusColorsDefaultsKey = "appearance.island.statusColors"
 
@@ -226,6 +227,13 @@ final class AppModel {
             refreshOverlayPlacementIfVisible()
         }
     }
+    var hideIdleIslandToEdge: Bool = false {
+        didSet {
+            guard hideIdleIslandToEdge != oldValue else { return }
+            UserDefaults.standard.set(hideIdleIslandToEdge, forKey: Self.islandHideIdleToEdgeDefaultsKey)
+            refreshOverlayPlacementIfVisible()
+        }
+    }
     var islandPixelShapeStyle: IslandPixelShapeStyle = .bars {
         didSet {
             guard islandPixelShapeStyle != oldValue else { return }
@@ -254,6 +262,10 @@ final class AppModel {
     func setStatusColor(_ color: Color, for phase: SessionPhase) {
         guard let hex = color.opaqueHexString else { return }
         statusColorHexes[phase] = hex
+    }
+
+    var showsIdleEdgeWhenCollapsed: Bool {
+        hideIdleIslandToEdge && notchStatus == .closed
     }
 
     func importCustomAvatar() {
@@ -407,6 +419,7 @@ final class AppModel {
         islandClosedDisplayStyle = IslandClosedDisplayStyle(
             rawValue: UserDefaults.standard.string(forKey: Self.islandClosedDisplayStyleDefaultsKey) ?? ""
         ) ?? .detailed
+        hideIdleIslandToEdge = UserDefaults.standard.bool(forKey: Self.islandHideIdleToEdgeDefaultsKey)
         islandPixelShapeStyle = IslandPixelShapeStyle(
             rawValue: UserDefaults.standard.string(forKey: Self.islandPixelShapeStyleDefaultsKey) ?? ""
         ) ?? .bars

@@ -51,6 +51,8 @@
 "settings.appearance.closedStyle" = "Closed Style";
 "settings.appearance.style.minimal" = "Minimal";
 "settings.appearance.style.detailed" = "Detailed";
+"settings.appearance.hideIdleToEdge" = "Hide To Edge When Idle";
+"settings.appearance.hideIdleToEdge.help" = "When the island is collapsed without an active notification card, keep only a thin black edge visible. Hovering or clicking still opens it.";
 "settings.appearance.pixelShape" = "Pixel Glyph";
 "settings.appearance.pixelShape.bars" = "Cat";
 "settings.appearance.pixelShape.steps" = "Steps";

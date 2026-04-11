@@ -394,6 +394,33 @@ final class OverlayPanelController {
         )
     }
 
+    nonisolated static func closedPanelWidth(
+        notchWidth: CGFloat,
+        notchHeight: CGFloat,
+        liveSessionCount: Int,
+        hasAttention: Bool,
+        notchStatus: NotchStatus,
+        showsIdleEdgeWhenCollapsed: Bool
+    ) -> CGFloat {
+        let popWidth = notchStatus == .popping ? 18 : 0
+
+        guard !showsIdleEdgeWhenCollapsed else {
+            return notchWidth + CGFloat(popWidth)
+        }
+
+        guard liveSessionCount > 0 else {
+            return notchWidth
+        }
+
+        let sideWidth = max(0, notchHeight - 12) + 10
+        let digits = max(1, "\(liveSessionCount)".count)
+        let countBadgeWidth = CGFloat(26 + max(0, digits - 1) * 8)
+        let leftWidth = sideWidth + 8 + (hasAttention ? 18 : 0)
+        let rightWidth = max(sideWidth, countBadgeWidth)
+        let expansionWidth = leftWidth + rightWidth + 16 + (hasAttention ? 6 : 0)
+        return notchWidth + expansionWidth + CGFloat(popWidth)
+    }
+
     private func closedSurfaceRect(for model: AppModel) -> NSRect? {
         guard let screen = resolveTargetScreen() else {
             return nil
@@ -455,21 +482,15 @@ final class OverlayPanelController {
         let spotlightSession = model.surfacedSessions.first(where: { $0.phase.requiresAttention })
             ?? model.surfacedSessions.first(where: { $0.phase == .running })
             ?? model.surfacedSessions.first
-        let hasClosedPresence = model.liveSessionCount > 0
 
-        guard hasClosedPresence else {
-            return notchWidth
-        }
-
-        let sideWidth = max(0, notchHeight - 12) + 10
-        let digits = max(1, "\(model.liveSessionCount)".count)
-        let countBadgeWidth = CGFloat(26 + max(0, digits - 1) * 8)
-        let hasAttention = spotlightSession?.phase.requiresAttention == true
-        let leftWidth = sideWidth + 8 + (hasAttention ? 18 : 0)
-        let rightWidth = max(sideWidth, countBadgeWidth)
-        let expansionWidth = leftWidth + rightWidth + 16 + (hasAttention ? 6 : 0)
-        let popWidth = model.notchStatus == .popping ? 18 : 0
-        return notchWidth + expansionWidth + CGFloat(popWidth)
+        return Self.closedPanelWidth(
+            notchWidth: notchWidth,
+            notchHeight: notchHeight,
+            liveSessionCount: model.liveSessionCount,
+            hasAttention: spotlightSession?.phase.requiresAttention == true,
+            notchStatus: model.notchStatus,
+            showsIdleEdgeWhenCollapsed: model.showsIdleEdgeWhenCollapsed
+        )
     }
 
     private func openedContentHeight(for model: AppModel) -> CGFloat {

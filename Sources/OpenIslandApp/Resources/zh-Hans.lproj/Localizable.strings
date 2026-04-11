@@ -51,6 +51,8 @@
 "settings.appearance.closedStyle" = "收起样式";
 "settings.appearance.style.minimal" = "简洁";
 "settings.appearance.style.detailed" = "详细";
+"settings.appearance.hideIdleToEdge" = "空闲时隐藏到黑边";
+"settings.appearance.hideIdleToEdge.help" = "当岛处于收起状态且没有活跃通知卡片时，只保留一条细黑边。鼠标悬停或点击仍可展开。";
 "settings.appearance.pixelShape" = "像素图形";
 "settings.appearance.pixelShape.bars" = "猫咪";
 "settings.appearance.pixelShape.steps" = "阶梯";

@@ -107,6 +107,7 @@ struct IslandPanelView: View {
     private static let headerHorizontalPadding: CGFloat = 18
     private static let headerTopPadding: CGFloat = 2
     private static let notchLaneSafetyInset: CGFloat = 12
+    private static let closedIdleEdgeHeight: CGFloat = 4
 
     var model: AppModel
 
@@ -144,6 +145,10 @@ struct IslandPanelView: View {
         model.liveSessionCount > 0
     }
 
+    private var showsIdleEdgeWhenCollapsed: Bool {
+        model.showsIdleEdgeWhenCollapsed
+    }
+
     /// Whether any session has activity worth showing in the closed notch
     private var hasClosedActivity: Bool {
         guard let session = closedSpotlightSession else {
@@ -173,6 +178,7 @@ struct IslandPanelView: View {
     }
 
     private var expansionWidth: CGFloat {
+        guard !showsIdleEdgeWhenCollapsed else { return 0 }
         guard hasClosedPresence else { return 0 }
         let leftWidth = sideWidth + 8 + (closedSpotlightSession?.phase.requiresAttention == true ? 18 : 0)
         let rightWidth = max(sideWidth, countBadgeWidth)
@@ -252,39 +258,55 @@ struct IslandPanelView: View {
             topCornerRadius: usesOpenedVisualState ? NotchShape.openedTopRadius : NotchShape.closedTopRadius,
             bottomCornerRadius: usesOpenedVisualState ? NotchShape.openedBottomRadius : NotchShape.closedBottomRadius
         )
+        let hidesClosedSurfaceChrome = showsIdleEdgeWhenCollapsed && !usesOpenedVisualState
+        let idleEdgeWidth = closedNotchWidth + (isPopping ? 18 : 0)
 
-        ZStack(alignment: .top) {
-            surfaceShape
-                .fill(Color.black)
-                .frame(width: surfaceWidth, height: surfaceHeight)
-
-            VStack(spacing: 0) {
-                headerRow
-                    .frame(height: closedNotchHeight)
-
-                openedContent
-                    .frame(width: openedWidth - 24)
-                    .frame(maxHeight: usesOpenedVisualState ? currentHeight - closedNotchHeight - 12 : 0, alignment: .top)
-                    .opacity(usesOpenedVisualState ? 1 : 0)
-                    .clipped()
-            }
-            .frame(width: currentWidth, height: currentHeight, alignment: .top)
-            .padding(.horizontal, horizontalInset)
-            .padding(.bottom, bottomInset)
-            .clipShape(surfaceShape)
-            .overlay(alignment: .top) {
-                // Black strip to blend with physical notch at the very top
-                Rectangle()
-                    .fill(Color.black)
-                    .frame(height: 1)
-                    .padding(.horizontal, usesOpenedVisualState ? NotchShape.openedTopRadius : NotchShape.closedTopRadius)
-            }
-            .overlay {
+        VStack(spacing: 0) {
+            ZStack(alignment: .top) {
                 surfaceShape
-                    .stroke(Color.white.opacity(usesOpenedVisualState ? 0.07 : 0.04), lineWidth: 1)
+                    .fill(Color.black.opacity(hidesClosedSurfaceChrome ? 0 : 1))
+                    .frame(width: surfaceWidth, height: surfaceHeight)
+
+                VStack(spacing: 0) {
+                    headerRow
+                        .frame(height: closedNotchHeight)
+                        .opacity(hidesClosedSurfaceChrome ? 0 : 1)
+
+                    openedContent
+                        .frame(width: openedWidth - 24)
+                        .frame(maxHeight: usesOpenedVisualState ? currentHeight - closedNotchHeight - 12 : 0, alignment: .top)
+                        .opacity(usesOpenedVisualState ? 1 : 0)
+                        .clipped()
+                }
+                .frame(width: currentWidth, height: currentHeight, alignment: .top)
+                .padding(.horizontal, horizontalInset)
+                .padding(.bottom, bottomInset)
+                .clipShape(surfaceShape)
+                .overlay(alignment: .top) {
+                    // Black strip to blend with physical notch at the very top
+                    Rectangle()
+                        .fill(Color.black)
+                        .frame(height: 1)
+                        .padding(.horizontal, usesOpenedVisualState ? NotchShape.openedTopRadius : NotchShape.closedTopRadius)
+                        .opacity(hidesClosedSurfaceChrome ? 0 : 1)
+                }
+                .overlay {
+                    surfaceShape
+                        .stroke(Color.white.opacity(hidesClosedSurfaceChrome ? 0 : (usesOpenedVisualState ? 0.07 : 0.04)), lineWidth: 1)
+                }
+                .overlay(alignment: .bottom) {
+                    Capsule()
+                        .fill(Color.black)
+                        .frame(width: idleEdgeWidth, height: Self.closedIdleEdgeHeight)
+                        .overlay {
+                            Capsule()
+                                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                        }
+                        .opacity(showsIdleEdgeWhenCollapsed ? 1 : 0)
+                }
             }
+            .frame(width: surfaceWidth, height: surfaceHeight, alignment: .top)
         }
-        .frame(width: surfaceWidth, height: surfaceHeight, alignment: .top)
         .scaleEffect(usesOpenedVisualState ? 1 : (isHovering ? IslandChromeMetrics.closedHoverScale : 1), anchor: .top)
         .padding(.horizontal, panelShadowHorizontalInset)
         .padding(.bottom, panelShadowBottomInset)

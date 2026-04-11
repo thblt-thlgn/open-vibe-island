@@ -37,6 +37,34 @@ struct OverlayPanelControllerTests {
     }
 
     @Test
+    func hiddenIdleEdgeClosedWidthStaysAtNotchWidth() {
+        let width = OverlayPanelController.closedPanelWidth(
+            notchWidth: 224,
+            notchHeight: 38,
+            liveSessionCount: 3,
+            hasAttention: true,
+            notchStatus: .closed,
+            showsIdleEdgeWhenCollapsed: true
+        )
+
+        #expect(width == 224)
+    }
+
+    @Test
+    func regularClosedWidthStillIncludesSessionIndicators() {
+        let width = OverlayPanelController.closedPanelWidth(
+            notchWidth: 224,
+            notchHeight: 38,
+            liveSessionCount: 3,
+            hasAttention: true,
+            notchStatus: .closed,
+            showsIdleEdgeWhenCollapsed: false
+        )
+
+        #expect(width == 344)
+    }
+
+    @Test
     func clickOpensActivateThePanel() {
         #expect(OverlayPanelController.shouldActivatePanel(for: .click))
     }

@@ -27,14 +27,8 @@ struct AppearanceSettingsPane: View {
                 }
             }
 
-            if isCustom {
-                Section(lang.t("settings.appearance.preview")) {
-                    notchPreviewCard
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                        .listRowBackground(Color.clear)
-                }
-
-                Section(lang.t("settings.appearance.style")) {
+            Section(lang.t("settings.appearance.style")) {
+                if isCustom {
                     Picker(lang.t("settings.appearance.closedStyle"), selection: Binding(
                         get: { model.islandClosedDisplayStyle },
                         set: { model.islandClosedDisplayStyle = $0 }
@@ -43,6 +37,23 @@ struct AppearanceSettingsPane: View {
                         Text(lang.t("settings.appearance.style.detailed")).tag(IslandClosedDisplayStyle.detailed)
                     }
                     .pickerStyle(.segmented)
+                }
+
+                Toggle(lang.t("settings.appearance.hideIdleToEdge"), isOn: Binding(
+                    get: { model.hideIdleIslandToEdge },
+                    set: { model.hideIdleIslandToEdge = $0 }
+                ))
+
+                Text(lang.t("settings.appearance.hideIdleToEdge.help"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if isCustom {
+                Section(lang.t("settings.appearance.preview")) {
+                    notchPreviewCard
+                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                        .listRowBackground(Color.clear)
                 }
 
                 Section(lang.t("settings.appearance.pixelShape")) {
@@ -108,10 +119,14 @@ struct AppearanceSettingsPane: View {
     }
 
     private var previewIslandBar: some View {
+        if shouldPreviewIdleEdgeOnly {
+            return AnyView(previewIdleEdge)
+        }
+
         let tint = model.statusColor(for: previewPhase)
         let isDetailed = model.islandClosedDisplayStyle == .detailed
 
-        return HStack(spacing: 8) {
+        return AnyView(HStack(spacing: 8) {
             IslandPixelGlyph(
                 tint: tint,
                 style: model.islandPixelShapeStyle,
@@ -146,7 +161,25 @@ struct AppearanceSettingsPane: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 10)
-        .background(Color.black, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(Color.black, in: RoundedRectangle(cornerRadius: 18, style: .continuous)))
+    }
+
+    private var shouldPreviewIdleEdgeOnly: Bool {
+        model.hideIdleIslandToEdge && previewPhase == .running
+    }
+
+    private var previewIdleEdge: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            Capsule()
+                .fill(Color.black)
+                .frame(height: 4)
+                .overlay {
+                    Capsule()
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                }
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var previewPhaseSelector: some View {
