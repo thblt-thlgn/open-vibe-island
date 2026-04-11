@@ -85,6 +85,84 @@ struct WarpSQLiteReaderTests {
     }
 
     @Test
+    func lookupPaneUUIDByShellPIDReturnsUUIDAtTheSameIndexAsShellInSortedSiblings() throws {
+        // Core correlation: Warp spawns one shell child per pane in
+        // tab creation order, and writes terminal_panes rows in the
+        // same order. The Nth child of Warp's terminal-server (by pid
+        // ASC) owns the Nth pane (by tab_id ASC). This is the signal
+        // that disambiguates sibling tabs sharing the same cwd — a
+        // case neither the primary cwd lookup nor the commands-history
+        // fallback can resolve.
+        let tmp = NSTemporaryDirectory() + "warp-fixture-\(UUID().uuidString).sqlite"
+        try WarpSQLiteFixture.write(to: tmp, scenario: .threeTabsTwoClaudes)
+        defer { try? FileManager.default.removeItem(atPath: tmp) }
+
+        let reader = WarpSQLiteReader(databasePath: tmp)
+        let siblings: [pid_t] = [2001, 2002, 2003]
+
+        // Shell 2001 (index 0 after sort) → first pane in tab order =
+        // AAAA (giftcard).
+        #expect(reader.lookupPaneUUIDByShellPID(2001, siblings: siblings)
+            == "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+        // Shell 2002 (index 1) → second pane = BBBB (open-vibe-island).
+        #expect(reader.lookupPaneUUIDByShellPID(2002, siblings: siblings)
+            == "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")
+        // Shell 2003 (index 2) → third pane = CCCC (/tmp).
+        #expect(reader.lookupPaneUUIDByShellPID(2003, siblings: siblings)
+            == "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC")
+    }
+
+    @Test
+    func lookupPaneUUIDByShellPIDReturnsNilWhenShellIsNotInSiblings() throws {
+        // Guards against a stale shellPID (e.g. the shell exited and a
+        // new one took its pid, or the caller passed a pid that is
+        // not a direct child of terminal-server). The correct
+        // fallback is nil — never guess.
+        let tmp = NSTemporaryDirectory() + "warp-fixture-\(UUID().uuidString).sqlite"
+        try WarpSQLiteFixture.write(to: tmp, scenario: .threeTabsTwoClaudes)
+        defer { try? FileManager.default.removeItem(atPath: tmp) }
+
+        let reader = WarpSQLiteReader(databasePath: tmp)
+        #expect(reader.lookupPaneUUIDByShellPID(9999, siblings: [2001, 2002, 2003]) == nil)
+    }
+
+    @Test
+    func lookupPaneUUIDByShellPIDSortsSiblingsBeforeIndexing() throws {
+        // Caller may pass siblings in arbitrary order (e.g. the order
+        // pgrep prints them in, which is not guaranteed to be sorted).
+        // The pid→index correlation depends on ASCENDING sort, so the
+        // method must impose the ordering itself.
+        let tmp = NSTemporaryDirectory() + "warp-fixture-\(UUID().uuidString).sqlite"
+        try WarpSQLiteFixture.write(to: tmp, scenario: .threeTabsTwoClaudes)
+        defer { try? FileManager.default.removeItem(atPath: tmp) }
+
+        let reader = WarpSQLiteReader(databasePath: tmp)
+        // pgrep output order flipped — still must resolve to the
+        // right pane.
+        #expect(reader.lookupPaneUUIDByShellPID(2001, siblings: [2003, 2001, 2002])
+            == "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+    }
+
+    @Test
+    func lookupPaneUUIDByShellPIDReturnsNilWhenIndexIsOutOfRange() throws {
+        // Simulates a transient state where siblings list contains
+        // more entries than terminal_panes. Could happen if Warp is
+        // mid-spawn on a new tab, or if a helper process is counted
+        // as a sibling by accident. Better to return nil than guess.
+        let tmp = NSTemporaryDirectory() + "warp-fixture-\(UUID().uuidString).sqlite"
+        try WarpSQLiteFixture.write(to: tmp, scenario: .threeTabsTwoClaudes)
+        defer { try? FileManager.default.removeItem(atPath: tmp) }
+
+        let reader = WarpSQLiteReader(databasePath: tmp)
+        // Six siblings, but only 3 panes — shell 2006 (index 5) is
+        // out of range.
+        #expect(reader.lookupPaneUUIDByShellPID(
+            2006,
+            siblings: [2001, 2002, 2003, 2004, 2005, 2006]
+        ) == nil)
+    }
+
+    @Test
     func lookupPaneUUIDFallbackFindsPaneEvenWithoutAnyPrecmdBlocks() throws {
         // Discovered against a real Warp SQLite during local E2E
         // testing: Warp does NOT always write `precmd-<session>-1`

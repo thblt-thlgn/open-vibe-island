@@ -922,17 +922,33 @@ public extension ClaudeHookPayload {
             environment: environment,
             currentTTYProvider: { currentTTY() },
             terminalLocatorProvider: { terminalLocator(for: $0) },
-            warpPaneResolver: { cwd in WarpSQLiteReader().lookupPaneUUID(forCwd: cwd) }
+            warpPaneResolver: Self.defaultWarpPaneResolver
         )
+    }
+
+    /// Default production resolver. Tries the PID-based lookup first
+    /// (unambiguous even for sibling tabs sharing a cwd) and falls back
+    /// to the cwd-based lookup when PID correlation is unavailable —
+    /// either because the hook is running outside a Warp pane (e.g.
+    /// invoked by tests) or because Warp's terminal-server child
+    /// enumeration is in a transient state.
+    static let defaultWarpPaneResolver: @Sendable (String) -> String? = { cwd in
+        let reader = WarpSQLiteReader()
+        if let context = WarpProcessResolver.resolveCurrentPaneContext(),
+           let uuid = reader.lookupPaneUUIDByShellPID(
+               context.shellPID,
+               terminalServerPID: context.terminalServerPID
+           ) {
+            return uuid
+        }
+        return reader.lookupPaneUUID(forCwd: cwd)
     }
 
     func withRuntimeContext(
         environment: [String: String],
         currentTTYProvider: () -> String?,
         terminalLocatorProvider: (String) -> (sessionID: String?, tty: String?, title: String?),
-        warpPaneResolver: (String) -> String? = { cwd in
-            WarpSQLiteReader().lookupPaneUUID(forCwd: cwd)
-        }
+        warpPaneResolver: (String) -> String? = Self.defaultWarpPaneResolver
     ) -> ClaudeHookPayload {
         var payload = self
 

@@ -234,6 +234,111 @@ public struct WarpSQLiteReader: Sendable {
         return result
     }
 
+    /// Resolves the Warp pane UUID for a shell process by its position in
+    /// Warp's `terminal-server` child list.
+    ///
+    /// Warp spawns one shell process per pane as a direct child of its
+    /// `terminal-server` helper. Because both the shell children and the
+    /// `terminal_panes` rows are created in the same order (one pair per
+    /// "open new tab" action), the shell's index among terminal-server's
+    /// children equals the pane's index in `terminal_panes` joined to
+    /// tabs ordered by `tab_id ASC`. That correlation is enough to pick
+    /// the right pane even when two panes share the same `cwd` — which
+    /// is exactly where the cwd-based lookups fail.
+    ///
+    /// This method is deliberately *pure*: it accepts the siblings list
+    /// rather than enumerating it itself so tests can pin the index
+    /// logic without spawning subprocesses. The production wrapper
+    /// `lookupPaneUUIDByShellPID(_:terminalServerPID:)` handles the
+    /// enumeration via `pgrep`.
+    ///
+    /// Returns nil when `shellPID` is not in `siblings`, when the index
+    /// is out of range relative to the tab list, or on any SQLite error.
+    public func lookupPaneUUIDByShellPID(
+        _ shellPID: pid_t,
+        siblings: [pid_t]
+    ) -> String? {
+        let sorted = siblings.sorted()
+        guard let index = sorted.firstIndex(of: shellPID) else {
+            return nil
+        }
+
+        guard let db = openReadOnly() else { return nil }
+        defer { sqlite3_close(db) }
+
+        // Enumerates every live leaf terminal pane in tab_id order,
+        // across all windows. Dropping the `active_window_id` filter is
+        // deliberate: on real hardware that column is sometimes NULL
+        // (Warp populates it lazily) and filtering on it returns zero
+        // rows even though the panes are clearly live. The
+        // pid-correlation assumption holds across all windows because
+        // terminal-server spawns children for every window's tabs, in
+        // the same creation order tabs are recorded in.
+        let sql = """
+        SELECT hex(tp.uuid)
+        FROM tabs t
+        JOIN pane_nodes pn ON pn.tab_id = t.id AND pn.is_leaf = 1
+        JOIN terminal_panes tp ON tp.id = pn.id
+        ORDER BY t.id ASC
+        LIMIT 1 OFFSET ?;
+        """
+
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return nil }
+        defer { sqlite3_finalize(stmt) }
+
+        sqlite3_bind_int(stmt, 1, Int32(index))
+
+        guard sqlite3_step(stmt) == SQLITE_ROW else { return nil }
+        guard let cString = sqlite3_column_text(stmt, 0) else { return nil }
+        return String(cString: cString)
+    }
+
+    /// Production-facing overload that enumerates terminal-server's
+    /// children via `pgrep -P <terminalServerPID>` and then delegates
+    /// to the pure `lookupPaneUUIDByShellPID(_:siblings:)`.
+    ///
+    /// Separated from the pure variant so tests can pin the pid→index
+    /// correlation logic without spawning subprocesses.
+    public func lookupPaneUUIDByShellPID(
+        _ shellPID: pid_t,
+        terminalServerPID: pid_t
+    ) -> String? {
+        guard let siblings = Self.enumerateChildPIDs(of: terminalServerPID) else {
+            return nil
+        }
+        return lookupPaneUUIDByShellPID(shellPID, siblings: siblings)
+    }
+
+    /// Spawns `/usr/bin/pgrep -P <pid>` to enumerate direct children of
+    /// the given pid. Returns nil on any error. Returns an empty array
+    /// when pgrep exits with code 1 (no children found) — a valid
+    /// result, not an error.
+    static func enumerateChildPIDs(of pid: pid_t) -> [pid_t]? {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        task.arguments = ["-P", "\(pid)"]
+        let stdout = Pipe()
+        task.standardOutput = stdout
+        task.standardError = Pipe()
+        do {
+            try task.run()
+            task.waitUntilExit()
+        } catch {
+            return nil
+        }
+        // pgrep: 0 = matches found, 1 = no matches (not an error),
+        // 2+    = genuine error.
+        guard task.terminationStatus == 0 || task.terminationStatus == 1 else {
+            return nil
+        }
+        let data = stdout.fileHandleForReading.readDataToEndOfFile()
+        guard let output = String(data: data, encoding: .utf8) else { return [] }
+        return output
+            .split(separator: "\n")
+            .compactMap { pid_t($0.trimmingCharacters(in: .whitespaces)) }
+    }
+
     /// Resolves the pane UUID of the currently focused pane in the currently
     /// active Warp window. This is what drives the polling loop during a
     /// precision jump.

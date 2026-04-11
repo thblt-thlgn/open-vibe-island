@@ -389,17 +389,30 @@ public extension CodexHookPayload {
             environment: environment,
             currentTTYProvider: { currentTTY() },
             terminalLocatorProvider: { terminalLocator(for: $0) },
-            warpPaneResolver: { cwd in WarpSQLiteReader().lookupPaneUUID(forCwd: cwd) }
+            warpPaneResolver: Self.defaultWarpPaneResolver
         )
+    }
+
+    /// Default production resolver — PID-based lookup first, cwd-based
+    /// as the fallback. Mirrors ClaudeHookPayload.defaultWarpPaneResolver;
+    /// see that file for the rationale.
+    static let defaultWarpPaneResolver: @Sendable (String) -> String? = { cwd in
+        let reader = WarpSQLiteReader()
+        if let context = WarpProcessResolver.resolveCurrentPaneContext(),
+           let uuid = reader.lookupPaneUUIDByShellPID(
+               context.shellPID,
+               terminalServerPID: context.terminalServerPID
+           ) {
+            return uuid
+        }
+        return reader.lookupPaneUUID(forCwd: cwd)
     }
 
     func withRuntimeContext(
         environment: [String: String],
         currentTTYProvider: () -> String?,
         terminalLocatorProvider: (String) -> (sessionID: String?, tty: String?, title: String?),
-        warpPaneResolver: (String) -> String? = { cwd in
-            WarpSQLiteReader().lookupPaneUUID(forCwd: cwd)
-        }
+        warpPaneResolver: (String) -> String? = Self.defaultWarpPaneResolver
     ) -> CodexHookPayload {
         var payload = self
 
