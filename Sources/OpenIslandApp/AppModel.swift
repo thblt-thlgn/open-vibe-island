@@ -15,6 +15,7 @@ final class AppModel {
     private static let islandHideIdleToEdgeDefaultsKey = "appearance.island.hideIdleToEdge"
     private static let islandPixelShapeStyleDefaultsKey = "appearance.island.pixelShapeStyle"
     private static let islandStatusColorsDefaultsKey = "appearance.island.statusColors"
+    private static let showCodexUsageDefaultsKey = "app.showCodexUsage"
 
     static let defaultStatusColors: [SessionPhase: String] = [
         .running: "#6E9FFF",
@@ -192,6 +193,12 @@ final class AppModel {
         didSet {
             guard hasFinishedInit, hapticFeedbackEnabled != oldValue else { return }
             UserDefaults.standard.set(hapticFeedbackEnabled, forKey: Self.hapticFeedbackEnabledDefaultsKey)
+        }
+    }
+    var showCodexUsage: Bool = false {
+        didSet {
+            guard hasFinishedInit, showCodexUsage != oldValue else { return }
+            UserDefaults.standard.set(showCodexUsage, forKey: Self.showCodexUsageDefaultsKey)
         }
     }
     var isSoundMuted = false {
@@ -422,6 +429,13 @@ final class AppModel {
         selectedSoundName = NotificationSoundService.selectedSoundName
         showDockIcon = UserDefaults.standard.bool(forKey: Self.showDockIconDefaultsKey)
         hapticFeedbackEnabled = UserDefaults.standard.bool(forKey: Self.hapticFeedbackEnabledDefaultsKey)
+        if UserDefaults.standard.object(forKey: Self.showCodexUsageDefaultsKey) != nil {
+            showCodexUsage = UserDefaults.standard.bool(forKey: Self.showCodexUsageDefaultsKey)
+        } else {
+            showCodexUsage = FileManager.default.fileExists(
+                atPath: CodexRolloutDiscovery.defaultRootURL.path
+            )
+        }
         islandAppearanceMode = IslandAppearanceMode(
             rawValue: UserDefaults.standard.string(forKey: Self.islandAppearanceModeDefaultsKey) ?? ""
         ) ?? .default
@@ -682,8 +696,10 @@ final class AppModel {
             hooks.refreshCursorHookStatus()
             hooks.refreshClaudeUsageState()
             hooks.startClaudeUsageMonitoringIfNeeded()
-            hooks.refreshCodexUsageState()
-            hooks.startCodexUsageMonitoringIfNeeded()
+            if showCodexUsage {
+                hooks.refreshCodexUsageState()
+                hooks.startCodexUsageMonitoringIfNeeded()
+            }
             updateChecker.startIfNeeded()
 
         } else {

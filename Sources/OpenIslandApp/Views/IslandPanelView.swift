@@ -684,7 +684,8 @@ struct IslandPanelView: View {
             }
         }
 
-        if let snapshot = model.codexUsageSnapshot,
+        if model.showCodexUsage,
+           let snapshot = model.codexUsageSnapshot,
            snapshot.isEmpty == false {
             let windows = snapshot.windows.map { window in
                 UsageWindowPresentation(

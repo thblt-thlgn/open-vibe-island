@@ -211,6 +211,10 @@ struct GeneralSettingsPane: View {
                     get: { model.hapticFeedbackEnabled },
                     set: { model.hapticFeedbackEnabled = $0 }
                 ))
+                Toggle(lang.t("settings.general.showCodexUsage"), isOn: Binding(
+                    get: { model.showCodexUsage },
+                    set: { model.showCodexUsage = $0 }
+                ))
             }
 
         }
