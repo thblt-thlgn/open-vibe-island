@@ -206,6 +206,7 @@ final class AppModel {
         didSet {
             guard hasFinishedInit, completionReplyEnabled != oldValue else { return }
             UserDefaults.standard.set(completionReplyEnabled, forKey: Self.completionReplyEnabledDefaultsKey)
+            refreshOverlayPlacementIfVisible()
         }
     }
     var isSoundMuted = false {
