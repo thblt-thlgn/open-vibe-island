@@ -481,7 +481,7 @@ public extension CodexHookPayload {
     }
 
     private static let noLocatorTerminalApps: Set<String> = [
-        "cmux", "kaku", "wezterm", "zellij",
+        "cmux", "codex.app", "kaku", "wezterm", "zellij",
         "vs code", "vs code insiders", "cursor", "windsurf", "trae",
         "intellij idea", "webstorm", "pycharm", "goland", "clion",
         "rubymine", "phpstorm", "rider", "rustrover",
@@ -517,6 +517,15 @@ public extension CodexHookPayload {
         }
         if environment["ZELLIJ"] != nil {
             return "Zellij"
+        }
+
+        // Codex desktop app — the hook binary runs as a child of
+        // Codex.app, which sets __CFBundleIdentifier to its own bundle
+        // ID. Detect before TERM_PROGRAM since the app is not a
+        // terminal emulator and won't set TERM_PROGRAM.
+        if let bundleID = environment["__CFBundleIdentifier"]?.lowercased(),
+           bundleID.contains("openai") && bundleID.contains("codex") {
+            return "Codex.app"
         }
 
         // TERM_PROGRAM is the only authoritative terminal signal. Each

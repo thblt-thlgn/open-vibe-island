@@ -313,6 +313,10 @@ struct ActiveAgentProcessDiscovery {
     private func recognizedTerminalApp(for command: String) -> String? {
         let lowered = command.lowercased()
 
+        if lowered.contains("/codex.app/contents/macos/") {
+            return "Codex.app"
+        }
+
         if lowered.contains("/cmux.app/contents/macos/cmux") {
             return "cmux"
         }
