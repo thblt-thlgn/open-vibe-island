@@ -59,6 +59,11 @@ struct TerminalJumpService {
             aliases: ["ghostty"]
         ),
         TerminalAppDescriptor(
+            displayName: "kitty",
+            bundleIdentifier: "net.kovidgoyal.kitty",
+            aliases: ["kitty", "kitty.app"]
+        ),
+        TerminalAppDescriptor(
             displayName: "Terminal",
             bundleIdentifier: "com.apple.Terminal",
             aliases: ["terminal", "apple_terminal"]
@@ -316,8 +321,23 @@ struct TerminalJumpService {
         // Zellij is a terminal multiplexer, not a macOS .app. Handle it
         // before the descriptor-based dispatch since it won't have one.
         if target.terminalApp.lowercased() == "zellij" {
-            if jumpToZellijPane(target) {
+            let sessionName = zellijSessionName(from: target.terminalSessionID)
+
+            // Focus the host kitty tab first. This is independent of whether
+            // the subsequent zellij pane switch succeeds: if zellij lookup
+            // fails we still want the user looking at the right kitty tab.
+            var kittyFocused = false
+            if let sessionName, !sessionName.isEmpty {
+                kittyFocused = focusKittyTabForZellijSession(sessionName)
+            }
+
+            let zellijJumped = jumpToZellijPane(target)
+
+            if zellijJumped {
                 return "Focused the matching Zellij pane."
+            }
+            if kittyFocused {
+                return "Focused the host kitty tab for Zellij session \(sessionName ?? "")."
             }
             // Fallback: activate whichever parent terminal is running.
             if let parentBundleID = Self.zellijParentTerminals.first(where: { appRunningChecker($0) }) {
@@ -678,6 +698,9 @@ struct TerminalJumpService {
             return false
         }
 
+        // Kitty tab focus is handled in the zellij branch of the main dispatch
+        // so it runs even when zellij pane lookup fails.
+
         // Query all panes to find which tab contains our target pane.
         guard let tabPosition = zellijTabPosition(
             zellijPath: zellijPath,
@@ -708,6 +731,192 @@ struct TerminalJumpService {
         return goToTab.terminationStatus == 0
     }
 
+    // Parse the zellij session name from the encoded terminalSessionID
+    // ("<paneID>:<sessionName>").
+    private func zellijSessionName(from terminalSessionID: String?) -> String? {
+        guard let encoded = terminalSessionID, !encoded.isEmpty else {
+            return nil
+        }
+        let parts = encoded.split(separator: ":", maxSplits: 1)
+        guard parts.count > 1 else { return nil }
+        let name = String(parts[1])
+        return name.isEmpty ? nil : name
+    }
+
+    // Focus the kitty tab AND the kitty OS window hosting the given zellij
+    // session.
+    //
+    // Two tricky details the kitty docs only hint at:
+    //   1. `kitty @ focus-tab` only changes the tab WITHIN its os-window.
+    //      It does NOT bring that os-window to the front on macOS. If
+    //      another kitty os-window is frontmost, the user sees no change.
+    //      (See kitty issue #9366.)
+    //   2. `env:ZELLIJ_SESSION_NAME` matchers don't work because kitty
+    //      only sees the env of the shell it spawned, not of zellij's
+    //      daemon-owned pane shells.
+    //
+    // Strategy: parse `kitty @ ls` to find the tab id AND os-window id
+    // whose title (zellij convention: "<session> | ...") matches our
+    // session, raise that specific os-window via AppleScript/AX, then
+    // send `focus-tab --match id:<N>` to change the internal tab.
+    @discardableResult
+    private func focusKittyTabForZellijSession(_ sessionName: String) -> Bool {
+        guard let kittyPath = resolveKittyPath() else { return false }
+        let socketPaths = kittyListenSocketPaths()
+        guard !socketPaths.isEmpty else { return false }
+
+        for socket in socketPaths {
+            guard let match = kittyMatchForZellijSession(
+                kittyPath: kittyPath,
+                socket: socket,
+                sessionName: sessionName
+            ) else { continue }
+            _ = match.osWindowID  // Reserved for future precise os-window raising.
+
+            // 1. Switch the internal tab first. Kitty updates its NSWindow
+            //    title to reflect the newly-active tab, so the subsequent
+            //    AppleScript AXRaise can match that title. If we raised
+            //    first, the window's title would still show the old tab.
+            let focus = Process()
+            focus.executableURL = URL(fileURLWithPath: kittyPath)
+            focus.arguments = ["@", "--to", "unix:\(socket)", "focus-tab", "--match", "id:\(match.tabID)"]
+            focus.standardOutput = FileHandle.nullDevice
+            focus.standardError = FileHandle.nullDevice
+            guard (try? focus.run()) != nil else { continue }
+            focus.waitUntilExit()
+            guard focus.terminationStatus == 0 else { continue }
+
+            // 2. Raise the matching os-window via AX.
+            raiseKittyOSWindow(titleContaining: sessionName)
+            return true
+        }
+
+        return false
+    }
+
+    private struct KittyMatch {
+        let tabID: Int
+        let osWindowID: Int
+    }
+
+    private func raiseKittyOSWindow(titleContaining needle: String) {
+        // 1. AppleScript to raise the matching OS window (visually) via AX.
+        let escapedNeedle = needle.replacingOccurrences(of: "\"", with: "\\\"")
+        let script = """
+        tell application "System Events"
+            tell process "kitty"
+                repeat with w in (every window)
+                    try
+                        if name of w contains "\(escapedNeedle)" then
+                            perform action "AXRaise" of w
+                            return
+                        end if
+                    end try
+                end repeat
+            end tell
+        end tell
+        """
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        task.arguments = ["-e", script]
+        task.standardOutput = FileHandle.nullDevice
+        task.standardError = FileHandle.nullDevice
+        _ = try? task.run()
+        task.waitUntilExit()
+
+        // 2. Hand keyboard focus to kitty. AppleScript `tell to activate` is
+        //    unreliable under .nonactivatingPanel hosts; NSRunningApplication
+        //    is the explicit API and works regardless of the caller's policy.
+        if let kitty = NSRunningApplication.runningApplications(
+            withBundleIdentifier: "net.kovidgoyal.kitty"
+        ).first {
+            kitty.activate(options: [.activateAllWindows])
+        }
+    }
+
+    private func kittyMatchForZellijSession(
+        kittyPath: String,
+        socket: String,
+        sessionName: String
+    ) -> KittyMatch? {
+        let list = Process()
+        list.executableURL = URL(fileURLWithPath: kittyPath)
+        list.arguments = ["@", "--to", "unix:\(socket)", "ls"]
+        let pipe = Pipe()
+        list.standardOutput = pipe
+        list.standardError = FileHandle.nullDevice
+        guard (try? list.run()) != nil else { return nil }
+        list.waitUntilExit()
+        guard list.terminationStatus == 0 else { return nil }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let rawArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            return nil
+        }
+
+        // kitty ls output shape:
+        //   [{ os_window_id, tabs: [{ id, title, windows: [{ title, foreground_processes: [{cmdline:[..]}] }] }] }]
+        // Zellij's kitty tab title convention is "<session_name> | <status>".
+        // Use a prefix match (session-name + space/pipe) to avoid substring
+        // collisions ("main" matching a tab called "mainframe").
+        func titleMatches(_ title: String) -> Bool {
+            guard title.hasPrefix(sessionName) else { return false }
+            let after = title.dropFirst(sessionName.count)
+            return after.isEmpty || after.first == " " || after.first == "|"
+        }
+
+        for osWindow in rawArray {
+            let osWindowID = osWindow["os_window_id"] as? Int ?? osWindow["id"] as? Int ?? -1
+            guard let tabs = osWindow["tabs"] as? [[String: Any]] else { continue }
+            for tab in tabs {
+                guard let tabID = tab["id"] as? Int else { continue }
+                let tabTitle = tab["title"] as? String ?? ""
+                if titleMatches(tabTitle) {
+                    return KittyMatch(tabID: tabID, osWindowID: osWindowID)
+                }
+                guard let windows = tab["windows"] as? [[String: Any]] else { continue }
+                for window in windows {
+                    let windowTitle = window["title"] as? String ?? ""
+                    if titleMatches(windowTitle) {
+                        return KittyMatch(tabID: tabID, osWindowID: osWindowID)
+                    }
+                    let fgProcesses = window["foreground_processes"] as? [[String: Any]] ?? []
+                    for proc in fgProcesses {
+                        let cmdline = (proc["cmdline"] as? [String])?.joined(separator: " ") ?? ""
+                        if cmdline.range(of: "\\b\(NSRegularExpression.escapedPattern(for: sessionName))\\b",
+                                         options: .regularExpression) != nil {
+                            return KittyMatch(tabID: tabID, osWindowID: osWindowID)
+                        }
+                    }
+                }
+            }
+        }
+
+        return nil
+    }
+
+    private func resolveKittyPath() -> String? {
+        let candidates = [
+            "/Applications/kitty.app/Contents/MacOS/kitty",
+            "/opt/homebrew/bin/kitty",
+            "/usr/local/bin/kitty",
+            NSHomeDirectory() + "/.local/bin/kitty",
+        ]
+        return candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) })
+    }
+
+    private func kittyListenSocketPaths() -> [String] {
+        // FileManager resolves `/tmp` to `/private/tmp`, so filter by filename
+        // prefix instead of full-path prefix. We return the original `/tmp/...`
+        // form because that's what kitty listens on (its config uses `/tmp`).
+        guard let entries = try? FileManager.default.contentsOfDirectory(atPath: "/tmp") else {
+            return []
+        }
+        return entries
+            .filter { $0.hasPrefix("kitty-") }
+            .map { "/tmp/\($0)" }
+    }
+
     private func resolveZellijPath() -> String? {
         let candidates = [
             NSHomeDirectory() + "/.local/bin/zellij",
@@ -736,13 +945,20 @@ struct TerminalJumpService {
     private struct ZellijPaneInfo: Decodable {
         let id: Int
         let tabPosition: Int?
+        let isPlugin: Bool?
 
         enum CodingKeys: String, CodingKey {
             case id
             case tabPosition = "tab_position"
+            case isPlugin = "is_plugin"
         }
     }
 
+    // Zellij exposes two separate `PaneId` spaces — terminal and plugin —
+    // but the JSON serialises both as a bare `"id"`, so a single pane ID can
+    // appear twice (e.g. plugin pane 0 and terminal pane 0). `ZELLIJ_PANE_ID`
+    // always refers to a terminal pane, so plugin entries must be excluded
+    // before matching or we land on the plugin's tab.
     /// Queries Zellij for pane info and returns the tab position of the given pane.
     private func zellijTabPosition(
         zellijPath: String,
@@ -755,7 +971,7 @@ struct TerminalJumpService {
         if let sessionName, !sessionName.isEmpty {
             args += ["--session", sessionName]
         }
-        args += ["action", "list-panes", "--json", "--tab"]
+        args += ["action", "list-panes", "--json"]
         task.arguments = args
 
         let outputPipe = Pipe()
@@ -770,7 +986,7 @@ struct TerminalJumpService {
             return nil
         }
 
-        return panes.first(where: { $0.id == paneID })?.tabPosition
+        return panes.first(where: { $0.id == paneID && $0.isPlugin != true })?.tabPosition
     }
 
     private func jumpToGhosttyTerminal(_ target: JumpTarget) throws -> Bool {

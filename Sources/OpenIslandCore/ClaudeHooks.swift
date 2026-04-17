@@ -1078,7 +1078,10 @@ public extension ClaudeHookPayload {
             return nil
         }
 
-        let collapsed = value
+        // Strip Claude Code's `<local-command-*>` / `<command-*>` markers
+        // before collapsing so they don't leak into hook-fed previews.
+        let stripped = ClaudeTranscriptDiscovery.stripTranscriptMarkers(value)
+        let collapsed = stripped
             .replacingOccurrences(of: "\n", with: " ")
             .replacingOccurrences(of: "\t", with: " ")
             .split(separator: " ", omittingEmptySubsequences: true)

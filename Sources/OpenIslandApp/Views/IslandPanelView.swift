@@ -1474,14 +1474,7 @@ private struct IslandSessionRow: View {
     }
 
     private func handlePrimaryTap() {
-        let rawPresence = session.islandPresence(at: referenceDate)
-        if rawPresence == .inactive && !isManuallyExpanded {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isManuallyExpanded = true
-            }
-        } else {
-            onJump()
-        }
+        onJump()
     }
 
     private func compactBadge(

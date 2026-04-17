@@ -104,9 +104,12 @@ public final class ClaudeTranscriptDiscovery: @unchecked Sendable {
             let topLevelType = object["type"] as? String
             let message = object["message"] as? [String: Any]
             let role = message?["role"] as? String
+            // Claude Code flags its own caveat/meta injections with `isMeta: true`;
+            // these are not real user prompts and must not surface as titles.
+            let isMeta = object["isMeta"] as? Bool == true
 
             if role == "user" {
-                if let prompt = promptText(from: message?["content"]) {
+                if !isMeta, let prompt = promptText(from: message?["content"]) {
                     if initialUserPrompt == nil {
                         initialUserPrompt = prompt
                     }
@@ -281,7 +284,8 @@ public final class ClaudeTranscriptDiscovery: @unchecked Sendable {
     }
 
     private func normalizedText(_ value: String) -> String? {
-        let collapsed = value
+        let stripped = Self.stripTranscriptMarkers(value)
+        let collapsed = stripped
             .replacingOccurrences(of: "\n", with: " ")
             .replacingOccurrences(of: "\t", with: " ")
             .split(separator: " ", omittingEmptySubsequences: true)
@@ -297,5 +301,49 @@ public final class ClaudeTranscriptDiscovery: @unchecked Sendable {
 
         let endIndex = collapsed.index(collapsed.startIndex, offsetBy: 139)
         return "\(collapsed[..<endIndex])…"
+    }
+
+    // Claude Code wraps slash-command artefacts in XML-like tags inside the
+    // transcript (`<local-command-caveat>`, `<local-command-stdout>`,
+    // `<command-name>`, `<command-message>`, `<command-args>`). Without
+    // stripping, these leak into session titles and prompts shown in the UI.
+    static func stripTranscriptMarkers(_ value: String) -> String {
+        var result = value
+        let dropContainers = [
+            "local-command-caveat",
+            "local-command-stdout",
+            "command-message",
+            "command-args",
+        ]
+        for tag in dropContainers {
+            result = result.replacingMatches(
+                of: "<\(tag)>[\\s\\S]*?</\(tag)>",
+                with: ""
+            )
+        }
+        // Unwrap <command-name>/foo</command-name> → /foo so slash commands stay visible.
+        result = result.replacingMatches(
+            of: "<command-name>([\\s\\S]*?)</command-name>",
+            with: "$1"
+        )
+        // Safety net: drop any remaining lowercase-tag shards so partial captures
+        // don't leak into titles.
+        result = result.replacingMatches(of: "</?[a-z][a-z0-9-]*>", with: "")
+        return result
+    }
+}
+
+private extension String {
+    func replacingMatches(of pattern: String, with template: String) -> String {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            return self
+        }
+        let range = NSRange(startIndex..., in: self)
+        return regex.stringByReplacingMatches(
+            in: self,
+            options: [],
+            range: range,
+            withTemplate: template
+        )
     }
 }

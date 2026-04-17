@@ -176,11 +176,14 @@ final class OverlayPanelController {
     }
 
     private func presentPanel(_ panel: NSPanel, activates: Bool) {
-        if activates {
-            panel.makeKeyAndOrderFront(nil)
-        } else {
-            panel.orderFrontRegardless()
-        }
+        // Always makeKey the panel when it's presented in an interactive mode,
+        // regardless of open reason. Hover-opened panels that stay non-key
+        // cause the first click on a session row to be consumed by key-window
+        // acquisition (two-click UX). `.nonactivatingPanel` still prevents us
+        // from stealing the frontmost-app spot, so `makeKeyAndOrderFront` here
+        // only affects focus *within* our app's windows.
+        _ = activates
+        panel.makeKeyAndOrderFront(nil)
     }
 
     private func computeNotchRect(screen: NSScreen?) {
@@ -706,11 +709,11 @@ final class NotchHostingView<Content: View>: NSHostingView<Content> {
     }
 
     override func mouseDown(with event: NSEvent) {
-        // Ensure the panel is key before SwiftUI processes the click.
-        // With nonactivatingPanel, hover-opened panels aren't key, so
-        // SwiftUI Button may consume the first click for key acquisition
-        // instead of firing its action.
-        window?.makeKey()
+        // macOS 26 (Darwin 25) still drops the first SwiftUI gesture inside a
+        // hover-opened nonactivatingPanel even with becomesKeyOnlyIfNeeded = false
+        // and acceptsFirstMouse. Re-asserting key status right before the event
+        // reaches the hosting view fixes the two-click UX.
+        window?.makeKeyAndOrderFront(nil)
         super.mouseDown(with: event)
     }
 
