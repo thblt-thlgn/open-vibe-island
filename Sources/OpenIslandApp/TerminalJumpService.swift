@@ -680,7 +680,8 @@ struct TerminalJumpService {
     // MARK: - Zellij CLI-based jump
 
     /// Parses the encoded `terminalSessionID` (format: `paneId:sessionName`)
-    /// and uses `zellij action` to switch to the tab containing that pane.
+    /// and uses `zellij action` to switch to the tab containing that pane
+    /// and focus the pane itself.
     private func jumpToZellijPane(_ target: JumpTarget) -> Bool {
         guard let encoded = target.terminalSessionID, !encoded.isEmpty else {
             return false
@@ -722,6 +723,23 @@ struct TerminalJumpService {
         goToTab.standardError = FileHandle.nullDevice
         guard (try? goToTab.run()) != nil else { return false }
         goToTab.waitUntilExit()
+
+        // After switching tab, focus the specific pane within that tab.
+        // When a tab hosts multiple panes (e.g. two claude instances split
+        // side-by-side), `go-to-tab` alone lands on whichever pane had focus
+        // last, not the one the user clicked. `focus-pane-id` targets the
+        // unique zellij pane id captured via `ZELLIJ_PANE_ID` at hook time.
+        let focusPane = Process()
+        focusPane.executableURL = URL(fileURLWithPath: zellijPath)
+        if let sessionName, !sessionName.isEmpty {
+            focusPane.arguments = ["--session", sessionName, "action", "focus-pane-id", "\(paneID)"]
+        } else {
+            focusPane.arguments = ["action", "focus-pane-id", "\(paneID)"]
+        }
+        focusPane.standardOutput = FileHandle.nullDevice
+        focusPane.standardError = FileHandle.nullDevice
+        _ = try? focusPane.run()
+        focusPane.waitUntilExit()
 
         // Activate the parent terminal app window.
         if let parentBundleID = Self.zellijParentTerminals.first(where: { appRunningChecker($0) }) {
