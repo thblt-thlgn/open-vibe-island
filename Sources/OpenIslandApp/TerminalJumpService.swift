@@ -323,20 +323,31 @@ struct TerminalJumpService {
         if target.terminalApp.lowercased() == "zellij" {
             let sessionName = zellijSessionName(from: target.terminalSessionID)
 
-            // Focus the host kitty tab first. This is independent of whether
-            // the subsequent zellij pane switch succeeds: if zellij lookup
-            // fails we still want the user looking at the right kitty tab.
-            var kittyFocused = false
+            // Order matters. First do the bits that DON'T need kitty to be
+            // frontmost (remote-control calls work against any running kitty
+            // instance). Then flip the foreground last, after all internal
+            // state has settled — otherwise zellij's focus-pane-id escape
+            // sequence can kick keyboard focus off kitty on its way through.
+            //
+            //   1. kitty @ focus-tab (internal tab switch only)
+            //   2. zellij go-to-tab + focus-pane-id
+            //   3. AXRaise the matching kitty os-window
+            //   4. NSRunningApplication.activate (main thread) to take key
+            var kittyTabSwitched = false
             if let sessionName, !sessionName.isEmpty {
-                kittyFocused = focusKittyTabForZellijSession(sessionName)
+                kittyTabSwitched = focusKittyTabIDForZellijSession(sessionName)
             }
 
             let zellijJumped = jumpToZellijPane(target)
 
+            if kittyTabSwitched, let sessionName, !sessionName.isEmpty {
+                raiseAndActivateKitty(titleContaining: sessionName)
+            }
+
             if zellijJumped {
                 return "Focused the matching Zellij pane."
             }
-            if kittyFocused {
+            if kittyTabSwitched {
                 return "Focused the host kitty tab for Zellij session \(sessionName ?? "")."
             }
             // Fallback: activate whichever parent terminal is running.
@@ -741,10 +752,11 @@ struct TerminalJumpService {
         _ = try? focusPane.run()
         focusPane.waitUntilExit()
 
-        // Activate the parent terminal app window.
-        if let parentBundleID = Self.zellijParentTerminals.first(where: { appRunningChecker($0) }) {
-            try? openAction(["-b", parentBundleID])
-        }
+        // Parent-terminal activation intentionally omitted here — the zellij
+        // branch in the main dispatch calls `focusKittyTabForZellijSession`
+        // which raises the matching kitty OS window AND calls
+        // `NSRunningApplication.activate`. Re-activating via `open -b` here
+        // races against that and can leave keyboard focus elsewhere.
 
         return goToTab.terminationStatus == 0
     }
@@ -777,8 +789,12 @@ struct TerminalJumpService {
     // whose title (zellij convention: "<session> | ...") matches our
     // session, raise that specific os-window via AppleScript/AX, then
     // send `focus-tab --match id:<N>` to change the internal tab.
+    // Step 1 of the kitty focus dance: internal tab switch only (no window
+    // raise, no app activation). kitty updates its NSWindow title to the
+    // newly-active tab's title as a side effect, which lets the later
+    // `raiseAndActivateKitty` match the window by session name.
     @discardableResult
-    private func focusKittyTabForZellijSession(_ sessionName: String) -> Bool {
+    private func focusKittyTabIDForZellijSession(_ sessionName: String) -> Bool {
         guard let kittyPath = resolveKittyPath() else { return false }
         let socketPaths = kittyListenSocketPaths()
         guard !socketPaths.isEmpty else { return false }
@@ -791,10 +807,6 @@ struct TerminalJumpService {
             ) else { continue }
             _ = match.osWindowID  // Reserved for future precise os-window raising.
 
-            // 1. Switch the internal tab first. Kitty updates its NSWindow
-            //    title to reflect the newly-active tab, so the subsequent
-            //    AppleScript AXRaise can match that title. If we raised
-            //    first, the window's title would still show the old tab.
             let focus = Process()
             focus.executableURL = URL(fileURLWithPath: kittyPath)
             focus.arguments = ["@", "--to", "unix:\(socket)", "focus-tab", "--match", "id:\(match.tabID)"]
@@ -802,14 +814,35 @@ struct TerminalJumpService {
             focus.standardError = FileHandle.nullDevice
             guard (try? focus.run()) != nil else { continue }
             focus.waitUntilExit()
-            guard focus.terminationStatus == 0 else { continue }
-
-            // 2. Raise the matching os-window via AX.
-            raiseKittyOSWindow(titleContaining: sessionName)
-            return true
+            if focus.terminationStatus == 0 {
+                return true
+            }
         }
 
         return false
+    }
+
+    // Step 2: raise the matching kitty OS window and hand it keyboard focus.
+    //
+    // Apple's "Passing control from one app to another with cooperative
+    // activation" doc (macOS 14+) is explicit: a bare `activate(options:)`
+    // from the active app returns `true` but doesn't actually grant focus
+    // — the system's activation arbiter declines. The canonical idiom is:
+    //
+    //   NSApp.yieldActivation(to: target)   // the caller yields
+    //   target.activate()                    // the target requests
+    //
+    // Both calls must run on the main thread. Our caller is on a
+    // Task.detached background queue (see AppModel.jump), so we hop.
+    private func raiseAndActivateKitty(titleContaining needle: String) {
+        raiseKittyOSWindow(titleContaining: needle)
+        DispatchQueue.main.async {
+            guard let kitty = NSRunningApplication.runningApplications(
+                withBundleIdentifier: "net.kovidgoyal.kitty"
+            ).first else { return }
+            NSApp.yieldActivation(to: kitty)
+            kitty.activate()
+        }
     }
 
     private struct KittyMatch {
@@ -817,8 +850,10 @@ struct TerminalJumpService {
         let osWindowID: Int
     }
 
+    // AX-only: raise the matching kitty OS window via `AXRaise`. Does NOT
+    // activate the app — that's the caller's responsibility (must happen on
+    // the main thread; see `raiseAndActivateKitty`).
     private func raiseKittyOSWindow(titleContaining needle: String) {
-        // 1. AppleScript to raise the matching OS window (visually) via AX.
         let escapedNeedle = needle.replacingOccurrences(of: "\"", with: "\\\"")
         let script = """
         tell application "System Events"
@@ -841,15 +876,6 @@ struct TerminalJumpService {
         task.standardError = FileHandle.nullDevice
         _ = try? task.run()
         task.waitUntilExit()
-
-        // 2. Hand keyboard focus to kitty. AppleScript `tell to activate` is
-        //    unreliable under .nonactivatingPanel hosts; NSRunningApplication
-        //    is the explicit API and works regardless of the caller's policy.
-        if let kitty = NSRunningApplication.runningApplications(
-            withBundleIdentifier: "net.kovidgoyal.kitty"
-        ).first {
-            kitty.activate(options: [.activateAllWindows])
-        }
     }
 
     private func kittyMatchForZellijSession(
